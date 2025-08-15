@@ -1,0 +1,40 @@
+{
+    "id": "flecs.systems.webgpu",
+    "type": "package",
+    "value": {
+        "author": "Flecs Community",
+        "description": "WebGPU-based rendering module for Flecs (web-native)",
+        "use": [
+            "flecs",
+            "flecs.components.gui",
+            "flecs.components.input",
+            "flecs.components.graphics",
+            "flecs.components.transform",
+            "flecs.components.geometry",
+            "flecs.systems.transform"
+        ],
+        "amalgamate": true
+    },
+    "lang.c": {
+        "${os linux}": {
+            "lib": ["m", "dawn_native", "dawn_proc"]
+        },
+        "${os darwin}": {
+            "lib": ["dawn_native", "dawn_proc"],
+            "ldflags": [
+                "-framework Foundation",
+                "-framework CoreFoundation", 
+                "-framework IOKit",
+                "-framework Metal"
+            ]
+        },
+        "${target em}": {
+            "ldflags": [
+                "-sUSE_WEBGPU=1",
+                "-sASYNCIFY=1",
+                "-sALLOW_MEMORY_GROWTH=1"
+            ],
+            "embed": ["shaders"]
+        }
+    }
+}
