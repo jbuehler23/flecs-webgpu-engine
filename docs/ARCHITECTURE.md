@@ -1,63 +1,40 @@
 # Architecture Overview
 
-This document outlines the technical architecture of the Flecs WebGPU rendering system, designed to provide optimal web performance while maintaining the simplicity and patterns of the existing Flecs ecosystem.
+This document details the technical architecture of the Flecs WebGPU rendering system. The design prioritizes web deployment performance while maintaining compatibility with existing Flecs patterns and components.
 
-## 🎯 Design Principles
+## Design Principles
 
-### 1. **Web-Native First**
-- WebGPU as primary graphics API (no WebGL fallback)
-- Optimized for browser performance and modern web standards
-- Async resource loading and responsive canvas integration
+The architecture addresses several critical requirements for modern web-based game development:
 
-### 2. **Flecs ECS Integration**
-- Deep integration with Flecs query system
-- Reuse existing Flecs Hub component definitions
-- Follow established Flecs lifecycle and system patterns
+**Web-Native Performance**
+WebGPU provides significantly better performance characteristics than WebGL for modern graphics workloads. The system is designed specifically for WebGPU capabilities rather than being a port of existing WebGL-based solutions. This includes native support for compute shaders, better resource management, and more efficient command submission patterns.
 
-### 3. **Performance by Design**
-- Automatic instancing for identical geometry
-- Efficient batching of rendering operations
-- GPU-driven rendering with minimal CPU overhead
+**ECS Integration**
+Rather than treating rendering as an external system, the architecture integrates directly with Flecs query patterns. Components drive rendering decisions, and the system automatically discovers and batches entities based on their component composition. This eliminates the need for explicit render calls or scene graph management.
 
-### 4. **Progressive Enhancement**
-- Modular feature development (geometry → materials → effects)
-- Optional advanced features that don't break basic usage
-- Graceful degradation on less capable hardware
+**Scalable Performance**
+The rendering pipeline is designed to handle both simple prototypes and complex production scenes efficiently. Automatic instancing ensures that scenes with many similar entities (common in games) render with minimal draw calls. Resource management prevents allocation overhead during frame rendering.
 
-## 🏛️ System Architecture
+**Modular Implementation**
+Features are implemented as separable modules that can be enabled independently. Core geometry rendering works without advanced lighting, materials can be added without breaking existing code, and post-processing effects are entirely optional. This allows applications to ship with only the features they actually use.
 
-### Core Modules
+## System Architecture
 
-```
-flecs-systems-webgpu/
-├── Core Renderer        // WebGPU device & rendering orchestration
-├── Geometry Manager     // Buffer management & primitive generation  
-├── Resource Manager     // Textures, shaders, pipeline state
-├── Query System        // Flecs integration & component gathering
-└── Web Integration     // Canvas, async loading, browser APIs
-```
+The system is organized into several specialized modules:
 
-### Module Dependencies
+**Core Renderer**: Manages WebGPU device initialization, command buffer recording, and frame orchestration. Handles the main rendering loop and coordinates between other modules.
 
-```mermaid
-graph TD
-    A[Core Renderer] --> B[Geometry Manager]
-    A --> C[Resource Manager] 
-    A --> D[Query System]
-    A --> E[Web Integration]
-    
-    B --> F[flecs.components.geometry]
-    C --> G[flecs.components.graphics]
-    D --> H[flecs.components.transform]
-    E --> I[flecs.components.gui]
-    
-    F --> J[flecs core]
-    G --> J
-    H --> J
-    I --> J
-```
+**Geometry Manager**: Responsible for vertex buffer management, primitive generation, and automatic instancing. Converts Flecs component data into GPU-compatible formats.
 
-## 🔧 Component Architecture
+**Resource Manager**: Handles GPU resource allocation, texture loading, shader compilation, and pipeline state management. Provides efficient resource pooling and caching.
+
+**Query System**: Integrates with Flecs queries to discover renderable entities and batch them by component type. Manages the mapping between ECS components and GPU resources.
+
+**Web Integration**: Provides browser-specific functionality including canvas management, async resource loading, and performance monitoring integration.
+
+## Component Architecture
+
+The rendering system extends the existing Flecs component ecosystem with GPU-specific components. These components integrate seamlessly with existing Flecs Hub modules while providing the necessary GPU resource management.
 
 ### Primary Components
 
@@ -166,7 +143,7 @@ stateDiagram-v2
     Destroyed --> [*]: GPU Resources Released
 ```
 
-## 🎮 Query Integration
+## Query Integration
 
 ### Dynamic Query Construction
 
@@ -224,7 +201,7 @@ void webgpu_gather_render_batches(WebGPURenderer *renderer) {
 }
 ```
 
-## 🌐 Web Integration Layer
+## Web Integration Layer
 
 ### Canvas Management
 
@@ -268,30 +245,20 @@ void webgpu_load_texture_async(const char* url, ecs_entity_t entity) {
 }
 ```
 
-## 🚀 Performance Optimizations
+## Performance Optimizations
 
-### GPU-Driven Rendering
+The rendering system implements several optimization strategies to ensure competitive performance in web environments:
 
-- **Automatic Instancing**: Entities with identical geometry are batched automatically
-- **Persistent Buffers**: GPU buffers persist across frames, only updated when needed
-- **Change Detection**: Component modifications trigger selective buffer updates
-- **Frustum Culling**: CPU-side culling before GPU submission
+**GPU-Driven Rendering**
+Entities with identical geometry types are automatically batched and rendered using instancing. This reduces the number of draw calls and minimizes CPU-GPU synchronization overhead. GPU buffers persist across frames and are only updated when component data changes, detected through Flecs change tracking.
 
-### Memory Management
+**Memory Management**
+The system uses custom allocators optimized for GPU resource patterns. Pool allocators handle frequent allocation/deallocation of temporary resources, while vertex and index buffers are shared across similar geometry types. Resource pooling prevents allocation overhead during frame rendering.
 
-- **Custom Allocators**: Pool allocators for frequent GPU resource allocation/deallocation
-- **Buffer Reuse**: Vertex/index buffers shared across similar geometry types
-- **Texture Atlasing**: Small textures combined to reduce draw calls
-- **Resource Pooling**: WebGPU resources recycled to avoid allocation overhead
+**Web-Specific Optimizations**
+Critical rendering resources are loaded first to minimize startup time. Optional features can be delivered in separate WebAssembly modules to reduce initial download size. Canvas operations automatically handle device pixel ratio changes and resize events for responsive applications.
 
-### Web-Specific Optimizations
-
-- **Progressive Loading**: Critical rendering resources loaded first
-- **Bundle Splitting**: Optional features delivered in separate WASM modules
-- **Canvas Optimization**: Automatic handling of device pixel ratio and resize events
-- **Performance Monitoring**: Integration with browser Performance API
-
-## 🔌 Extension Points
+## Extension Points
 
 ### Custom Geometry Types
 
@@ -321,4 +288,10 @@ typedef struct {
 void webgpu_register_shader(webgpu_shader_plugin_t *shader);
 ```
 
-This architecture provides a solid foundation for high-performance web graphics while maintaining the elegant simplicity that makes Flecs ECS so powerful.
+## Implementation Notes
+
+The architecture balances performance requirements with implementation complexity. Critical rendering paths avoid memory allocations and minimize state changes. The plugin system allows applications to extend functionality without modifying core rendering code.
+
+Component lifecycle management follows standard Flecs patterns, ensuring that GPU resources are properly allocated and deallocated in response to entity changes. The query-driven approach eliminates the need for explicit scene graph management while providing efficient batch processing of similar entities.
+
+This design provides the foundation for production-quality web graphics applications while maintaining the development ergonomics that make Flecs an effective choice for game development.

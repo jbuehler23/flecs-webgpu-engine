@@ -1,16 +1,15 @@
 # Research & Analysis
 
-This document captures our comprehensive analysis of the existing Flecs ecosystem and the rationale behind our architectural decisions for the web-native WebGPU renderer.
+This document provides technical analysis of the existing Flecs rendering ecosystem and documents the design decisions for the WebGPU-based implementation.
 
-## 🔍 Existing Sokol Architecture Analysis
+## Existing Sokol Architecture Analysis
 
-### Core Patterns Discovered
+Analysis of the `flecs-systems-sokol` implementation revealed several patterns that inform the WebGPU architecture design:
 
-From analyzing `flecs-systems-sokol`, we identified these key architectural patterns:
+**Query-Driven Rendering**
+The Sokol implementation uses Flecs queries to discover renderable entities each frame rather than maintaining explicit entity lists:
 
-#### 1. **Query-Driven Rendering**
 ```c
-// Pattern: Systems use Flecs queries to gather renderable entities
 ecs_iter_t qit = ecs_query_iter(world, renderer->solid_query);
 while (ecs_query_next(&qit)) {
     EcsTransform3 *transforms = ecs_field(&qit, EcsTransform3, 0);
@@ -19,18 +18,21 @@ while (ecs_query_next(&qit)) {
 }
 ```
 
-**Key Insight**: The renderer doesn't track entities individually - it queries the world each frame for renderable entities, enabling dynamic scene composition.
+This pattern enables dynamic scene composition without manual entity tracking. Entities become renderable simply by adding appropriate components, and stop being rendered when components are removed.
 
-#### 2. **Automatic Instancing**
+**Automatic Instancing**
+Entities with identical geometry types are automatically batched for efficient GPU rendering:
+
 ```c
-// Pattern: Components are batched by geometry type for efficient GPU rendering
 sokol_populate_buffers(geometry, buffers, query);
 // Uploads transform matrices, colors, materials as instance data
 ```
 
-**Key Insight**: Entities with the same geometry type are automatically batched and rendered as instances, providing significant performance benefits.
+This approach significantly reduces draw calls for scenes with many similar objects, which is common in game environments.
 
-#### 3. **Component-Based Resource Management**
+**Component-Based Resource Management**
+GPU resources are managed through ECS components with proper lifecycle integration:
+
 ```c
 typedef struct {
     ecs_allocator_t *allocator;
@@ -39,7 +41,7 @@ typedef struct {
 } SokolGeometry;
 ```
 
-**Key Insight**: Resources are managed through ECS components with proper lifecycle hooks (constructor/destructor/move).
+This ensures that GPU resources are properly allocated and deallocated in response to entity lifecycle events.
 
 ### Build System Integration
 

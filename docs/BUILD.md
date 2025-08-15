@@ -2,30 +2,26 @@
 
 This document covers the build configuration for the Flecs WebGPU rendering system, supporting both web (Emscripten) and native (Dawn/wgpu-native) targets.
 
-## 🎯 Build Targets
+## Build Targets
 
 ### Supported Platforms
 
 | Platform | Native Backend | Web Backend | Status |
 |----------|---------------|-------------|---------|
-| **Linux** | Dawn / wgpu-native | Emscripten + WebGPU | ✅ Supported |
-| **macOS** | Dawn / wgpu-native | Emscripten + WebGPU | ✅ Supported |
-| **Windows** | Dawn / wgpu-native | Emscripten + WebGPU | ✅ Planned |
-| **Web** | N/A | Emscripten + WebGPU | 🚧 Primary Target |
+| **Linux** | Dawn / wgpu-native | Emscripten + WebGPU | Supported |
+| **macOS** | Dawn / wgpu-native | Emscripten + WebGPU | Supported |
+| **Windows** | Dawn / wgpu-native | Emscripten + WebGPU | Planned |
+| **Web** | N/A | Emscripten + WebGPU | Primary Target |
 
-### Build System Matrix
+### Build System Support
 
-```
-┌─────────────────┬──────────────┬─────────────────┐
-│ Build System    │ Native       │ Web             │
-├─────────────────┼──────────────┼─────────────────┤
-│ Bake (Primary)  │ ✅ Supported  │ ✅ Supported     │
-│ CMake (Alt)     │ ✅ Supported  │ ✅ Supported     │
-│ Emscripten      │ N/A          │ ✅ Required      │
-└─────────────────┴──────────────┴─────────────────┘
-```
+Both Bake (Flecs ecosystem standard) and CMake are supported for maximum compatibility:
 
-## 🔧 Bake Configuration
+- **Bake**: Primary build system with integrated WebGPU configuration
+- **CMake**: Alternative for projects with existing CMake workflows
+- **Emscripten**: Required for web deployment with WebGPU support
+
+## Bake Configuration
 
 ### Primary Build Configuration (project.json)
 

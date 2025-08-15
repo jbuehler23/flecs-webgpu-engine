@@ -1,77 +1,73 @@
 # Development Roadmap
 
-This document outlines the implementation phases, milestones, and timeline for the Flecs WebGPU rendering system.
+This document outlines the implementation phases and milestones for the Flecs WebGPU rendering system.
 
-## 🎯 Project Goals
+## Project Objectives
 
-**Primary Objective**: Create a web-native rendering engine that provides the shortest path from Flecs ECS code to visual output in browsers.
+**Primary Goal**: Develop a production-ready web-native rendering engine that integrates seamlessly with the Flecs ECS ecosystem.
 
-**Success Metrics**:
-- ✅ API complexity equivalent to existing Sokol system
-- ✅ Performance matches or exceeds Sokol implementation in browsers  
-- ✅ Sub-1MB WebAssembly binary size for basic scenes
-- ✅ 60fps rendering of 10k+ entities in modern browsers
-- ✅ <100ms cold start time in web browsers
-- ✅ Full compatibility with existing Flecs Hub components
+**Success Criteria**:
+- API complexity equivalent to existing Sokol system
+- Performance matches or exceeds Sokol implementation in browsers  
+- Sub-1MB WebAssembly binary size for basic scenes
+- 60fps rendering of 10k+ entities in modern browsers
+- Cold start time under 100ms in web browsers
+- Full compatibility with existing Flecs Hub components
 
-## 🗓️ Implementation Timeline
+## Implementation Phases
 
-### **Phase 1: Foundation (Weeks 1-2)**
-**Status**: 🚧 In Progress
+### Phase 1: Foundation (Weeks 1-2)
+**Status**: In Progress
 
-#### ✅ Completed Tasks
-- [x] Sokol architecture analysis
-- [x] WebGPU backend evaluation (Dawn vs wgpu-native)
-- [x] System architecture design
-- [x] Documentation framework
+**Completed:**
+- Sokol architecture analysis and pattern identification
+- WebGPU backend evaluation (Dawn vs wgpu-native)
+- System architecture design and documentation
+- Core component definitions and interfaces
 
-#### 🚧 Current Tasks  
-- [ ] Basic WebGPU device initialization
-- [ ] Canvas surface creation and management
-- [ ] Simple triangle rendering proof of concept
+**Current Work:**
+- Basic WebGPU device initialization and error handling
+- Canvas surface creation and management
+- Core renderer component implementation
+- Simple triangle rendering proof of concept
 
-#### 📋 Upcoming Tasks
-- [ ] Bake build system integration
-- [ ] Cross-platform CMake configuration
-- [ ] Error handling and debugging infrastructure
+**Upcoming:**
+- Build system integration and cross-platform configuration
+- Error handling and debugging infrastructure
 
-**Deliverables**:
-- Minimal WebGPU renderer that displays a colored triangle
-- Build system supporting both web and native targets
-- Basic component structure matching Sokol patterns
+**Phase 1 Deliverables:**
+- Minimal WebGPU renderer displaying basic geometry
+- Build system supporting web and native targets
+- Component structure compatible with existing Flecs patterns
 
----
+### Phase 2: Core Rendering (Weeks 3-5)
+**Status**: Pending
 
-### **Phase 2: Core Rendering (Weeks 3-5)**
-**Status**: ⏳ Pending
+**Geometry System:**
+- Vertex/index buffer management and efficient uploads
+- Basic primitive generation (Box, Rectangle, Sphere)
+- Automatic instancing for identical geometry types
+- Transform matrix computation from Flecs components
 
-#### Geometry System
-- [ ] Vertex/index buffer management
-- [ ] Basic primitive generation (Box, Rectangle, Sphere)
-- [ ] Automatic instancing for identical geometry
-- [ ] Transform matrix computation from Flecs components
+**Material System:**
+- Material component structure and property management
+- Uniform buffer management for GPU data
+- Texture loading, binding, and sampling
+- Lighting model implementation (Phong/PBR)
 
-#### Material System  
-- [ ] Basic material component structure
-- [ ] Uniform buffer management for material properties
-- [ ] Texture loading and binding
-- [ ] Simple Phong shading implementation
+**Flecs Integration:**
+- Query system optimization for renderable entity discovery
+- Component change detection for efficient GPU updates
+- Memory management with proper ECS lifecycle integration
+- System registration and execution order management
 
-#### Flecs Integration
-- [ ] Query system for gathering renderable entities
-- [ ] Component change detection for efficient updates
-- [ ] Memory management with proper ECS lifecycle hooks
-- [ ] System registration in appropriate pipeline phases
+**Phase 2 Deliverables:**
+- Basic geometric primitive rendering with materials
+- Automatic entity batching by geometry type
+- Full integration with Flecs Hub component ecosystem
 
-**Deliverables**:
-- Render basic geometric primitives with colors
-- Automatic batching of entities with same geometry
-- Integration with existing Flecs Hub transform components
-
----
-
-### **Phase 3: Advanced Features (Weeks 6-8)**
-**Status**: ⏳ Pending
+### Phase 3: Advanced Features (Weeks 6-8)
+**Status**: Pending
 
 #### Lighting & Shading
 - [ ] PBR (Physically Based Rendering) material workflow
