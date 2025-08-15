@@ -192,20 +192,8 @@ void webgpu_populate_geometry_buffers(WebGPUGeometry *geometry, ecs_query_t *que
             for (int i = 0; i < it.count; i++) {
                 mat4 *dst_transform = ecs_vec_get_t(&geometry->transform_data, mat4, current_count + i);
                 
-                /* Convert EcsTransform3 to mat4 */
-                mat4_identity(*dst_transform);
-                
-                /* Apply translation */
-                (*dst_transform)[12] = transforms[i].value[3][0];  /* X */
-                (*dst_transform)[13] = transforms[i].value[3][1];  /* Y */
-                (*dst_transform)[14] = transforms[i].value[3][2];  /* Z */
-                
-                /* Copy rotation and scale from transform matrix */
-                for (int row = 0; row < 3; row++) {
-                    for (int col = 0; col < 3; col++) {
-                        (*dst_transform)[row * 4 + col] = transforms[i].value[row][col];
-                    }
-                }
+                /* Copy the entire transform matrix from EcsTransform3 */
+                glm_mat4_copy(transforms[i].value, *dst_transform);
             }
         }
         
@@ -237,9 +225,8 @@ void webgpu_populate_geometry_buffers(WebGPUGeometry *geometry, ecs_query_t *que
                 mat4 *transform = ecs_vec_get_t(&geometry->transform_data, mat4, current_count + i);
                 
                 /* Scale by box dimensions */
-                (*transform)[0] *= boxes[i].width;   /* Scale X */
-                (*transform)[5] *= boxes[i].height;  /* Scale Y */
-                (*transform)[10] *= boxes[i].depth;  /* Scale Z */
+                vec3 scale = {boxes[i].width, boxes[i].height, boxes[i].depth};
+                glm_scale(*transform, scale);
             }
         } else if (geometry->component_id == ecs_id(EcsRectangle)) {
             EcsRectangle *rectangles = (EcsRectangle*)geometry_data;
@@ -247,8 +234,8 @@ void webgpu_populate_geometry_buffers(WebGPUGeometry *geometry, ecs_query_t *que
                 mat4 *transform = ecs_vec_get_t(&geometry->transform_data, mat4, current_count + i);
                 
                 /* Scale by rectangle dimensions */
-                (*transform)[0] *= rectangles[i].width;   /* Scale X */
-                (*transform)[5] *= rectangles[i].height;  /* Scale Y */
+                vec3 scale = {rectangles[i].width, rectangles[i].height, 1.0f};
+                glm_scale(*transform, scale);
             }
         }
     }
@@ -276,23 +263,23 @@ ECS_DTOR(WebGPUGeometry, ptr, {
         ecs_query_fini(ptr->query);
     }
     
-    if (ptr->vertex_buffer.id) {
+    if (ptr->vertex_buffer != NULL) {
         wgpuBufferRelease(ptr->vertex_buffer);
     }
     
-    if (ptr->index_buffer.id) {
+    if (ptr->index_buffer != NULL) {
         wgpuBufferRelease(ptr->index_buffer);
     }
     
-    if (ptr->instance_buffer.id) {
+    if (ptr->instance_buffer != NULL) {
         wgpuBufferRelease(ptr->instance_buffer);
     }
     
-    if (ptr->pipeline.id) {
+    if (ptr->pipeline != NULL) {
         wgpuRenderPipelineRelease(ptr->pipeline);
     }
     
-    if (ptr->bind_group.id) {
+    if (ptr->bind_group != NULL) {
         wgpuBindGroupRelease(ptr->bind_group);
     }
 })

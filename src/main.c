@@ -5,7 +5,7 @@
 
 #include "private_api.h"
 
-/* Component definitions */
+/* Component declarations and definitions */
 ECS_COMPONENT_DECLARE(WebGPURenderer);
 ECS_COMPONENT_DECLARE(WebGPUGeometry);
 ECS_COMPONENT_DECLARE(WebGPUMaterial);

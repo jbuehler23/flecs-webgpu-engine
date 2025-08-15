@@ -9,64 +9,37 @@
  * Set matrix to identity
  */
 void mat4_identity(mat4 m) {
-    for (int i = 0; i < 16; i++) {
-        m[i] = 0.0f;
-    }
-    m[0] = m[5] = m[10] = m[15] = 1.0f;
+    glm_mat4_identity(m);
 }
 
 /**
  * Multiply two 4x4 matrices
  */
 void mat4_multiply(mat4 result, const mat4 a, const mat4 b) {
-    mat4 temp;
-    
-    for (int i = 0; i < 4; i++) {
-        for (int j = 0; j < 4; j++) {
-            temp[i * 4 + j] = 0.0f;
-            for (int k = 0; k < 4; k++) {
-                temp[i * 4 + j] += a[i * 4 + k] * b[k * 4 + j];
-            }
-        }
-    }
-    
-    for (int i = 0; i < 16; i++) {
-        result[i] = temp[i];
-    }
+    glm_mat4_mul(a, b, result);
 }
 
 /**
  * Apply translation to matrix
  */
 void mat4_translate(mat4 m, float x, float y, float z) {
-    m[12] += x;
-    m[13] += y;
-    m[14] += z;
+    vec3 translation = {x, y, z};
+    glm_translate(m, translation);
 }
 
 /**
  * Apply scale to matrix
  */
 void mat4_scale(mat4 m, float x, float y, float z) {
-    m[0] *= x;
-    m[5] *= y;
-    m[10] *= z;
+    vec3 scale = {x, y, z};
+    glm_scale(m, scale);
 }
 
 /**
  * Create perspective projection matrix
  */
 void mat4_perspective(mat4 m, float fov, float aspect, float near, float far) {
-    float tan_half_fov = tanf(fov * 0.5f);
-    
-    mat4_identity(m);
-    
-    m[0] = 1.0f / (aspect * tan_half_fov);
-    m[5] = 1.0f / tan_half_fov;
-    m[10] = -(far + near) / (far - near);
-    m[11] = -1.0f;
-    m[14] = -(2.0f * far * near) / (far - near);
-    m[15] = 0.0f;
+    glm_perspective(fov, aspect, near, far, m);
 }
 
 /**

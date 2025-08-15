@@ -32,10 +32,8 @@ static WGPUBuffer create_instance_buffer(WGPUDevice device,
             /* Convert EcsTransform3 to 4x4 matrix */
             mat4 transform_matrix;
             mat4_identity(transform_matrix);
-            mat4_translate(transform_matrix, 
-                          transforms[i].value[0], 
-                          transforms[i].value[1], 
-                          transforms[i].value[2]);
+            /* Copy the existing transform matrix */
+            glm_mat4_copy(transforms[i].value, transform_matrix);
             memcpy(dst, transform_matrix, 16 * sizeof(float));
         } else {
             /* Identity matrix */

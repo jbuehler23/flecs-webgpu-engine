@@ -159,11 +159,7 @@ extern "C" {
 
 /* Forward declarations for components */
 
-/* Component declarations */
-ECS_COMPONENT_DECLARE(WebGPURenderer);
-ECS_COMPONENT_DECLARE(WebGPUGeometry);
-ECS_COMPONENT_DECLARE(WebGPUMaterial);
-ECS_COMPONENT_DECLARE(WebGPUQuery);
+/* Component declarations - only in main module */
 
 /* Core renderer component */
 typedef struct WebGPURenderer {

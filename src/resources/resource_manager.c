@@ -97,15 +97,12 @@ WGPUShaderModule webgpu_create_shader_module(WGPUDevice device, const char *wgsl
         return NULL;
     }
     
-    WGPUShaderSourceWGSL wgsl_source_desc = {
+    WGPUShaderModuleWGSLDescriptor wgsl_source_desc = {
         .chain = {
             .next = NULL,
-            .sType = WGPUSType_ShaderSourceWGSL,
+            .sType = WGPUSType_ShaderModuleWGSLDescriptor,
         },
-        .code = {
-            .data = wgsl_source,
-            .length = strlen(wgsl_source),
-        },
+        .code = wgsl_source,
     };
     
     WGPUShaderModuleDescriptor shader_desc = {

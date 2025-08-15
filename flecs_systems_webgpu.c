@@ -138,7 +138,7 @@ void webgpu_profile_frame_end(const char* frame_name);
 
 #endif /* FLECS_SYSTEMS_WEBGPU_PRIVATE_API_H */
 
-/* Component definitions */
+/* Component declarations and definitions */
 ECS_COMPONENT_DECLARE(WebGPURenderer);
 ECS_COMPONENT_DECLARE(WebGPUGeometry);
 ECS_COMPONENT_DECLARE(WebGPUMaterial);
@@ -675,20 +675,8 @@ void webgpu_populate_geometry_buffers(WebGPUGeometry *geometry, ecs_query_t *que
             for (int i = 0; i < it.count; i++) {
                 mat4 *dst_transform = ecs_vec_get_t(&geometry->transform_data, mat4, current_count + i);
                 
-                /* Convert EcsTransform3 to mat4 */
-                mat4_identity(*dst_transform);
-                
-                /* Apply translation */
-                (*dst_transform)[12] = transforms[i].value[3][0];  /* X */
-                (*dst_transform)[13] = transforms[i].value[3][1];  /* Y */
-                (*dst_transform)[14] = transforms[i].value[3][2];  /* Z */
-                
-                /* Copy rotation and scale from transform matrix */
-                for (int row = 0; row < 3; row++) {
-                    for (int col = 0; col < 3; col++) {
-                        (*dst_transform)[row * 4 + col] = transforms[i].value[row][col];
-                    }
-                }
+                /* Copy the entire transform matrix from EcsTransform3 */
+                glm_mat4_copy(transforms[i].value, *dst_transform);
             }
         }
         
@@ -720,9 +708,8 @@ void webgpu_populate_geometry_buffers(WebGPUGeometry *geometry, ecs_query_t *que
                 mat4 *transform = ecs_vec_get_t(&geometry->transform_data, mat4, current_count + i);
                 
                 /* Scale by box dimensions */
-                (*transform)[0] *= boxes[i].width;   /* Scale X */
-                (*transform)[5] *= boxes[i].height;  /* Scale Y */
-                (*transform)[10] *= boxes[i].depth;  /* Scale Z */
+                vec3 scale = {boxes[i].width, boxes[i].height, boxes[i].depth};
+                glm_scale(*transform, scale);
             }
         } else if (geometry->component_id == ecs_id(EcsRectangle)) {
             EcsRectangle *rectangles = (EcsRectangle*)geometry_data;
@@ -730,8 +717,8 @@ void webgpu_populate_geometry_buffers(WebGPUGeometry *geometry, ecs_query_t *que
                 mat4 *transform = ecs_vec_get_t(&geometry->transform_data, mat4, current_count + i);
                 
                 /* Scale by rectangle dimensions */
-                (*transform)[0] *= rectangles[i].width;   /* Scale X */
-                (*transform)[5] *= rectangles[i].height;  /* Scale Y */
+                vec3 scale = {rectangles[i].width, rectangles[i].height, 1.0f};
+                glm_scale(*transform, scale);
             }
         }
     }
@@ -759,23 +746,23 @@ ECS_DTOR(WebGPUGeometry, ptr, {
         ecs_query_fini(ptr->query);
     }
     
-    if (ptr->vertex_buffer.id) {
+    if (ptr->vertex_buffer != NULL) {
         wgpuBufferRelease(ptr->vertex_buffer);
     }
     
-    if (ptr->index_buffer.id) {
+    if (ptr->index_buffer != NULL) {
         wgpuBufferRelease(ptr->index_buffer);
     }
     
-    if (ptr->instance_buffer.id) {
+    if (ptr->instance_buffer != NULL) {
         wgpuBufferRelease(ptr->instance_buffer);
     }
     
-    if (ptr->pipeline.id) {
+    if (ptr->pipeline != NULL) {
         wgpuRenderPipelineRelease(ptr->pipeline);
     }
     
-    if (ptr->bind_group.id) {
+    if (ptr->bind_group != NULL) {
         wgpuBindGroupRelease(ptr->bind_group);
     }
 })
@@ -834,64 +821,37 @@ void webgpu_geometry_import(ecs_world_t *world) {
  * Set matrix to identity
  */
 void mat4_identity(mat4 m) {
-    for (int i = 0; i < 16; i++) {
-        m[i] = 0.0f;
-    }
-    m[0] = m[5] = m[10] = m[15] = 1.0f;
+    glm_mat4_identity(m);
 }
 
 /**
  * Multiply two 4x4 matrices
  */
 void mat4_multiply(mat4 result, const mat4 a, const mat4 b) {
-    mat4 temp;
-    
-    for (int i = 0; i < 4; i++) {
-        for (int j = 0; j < 4; j++) {
-            temp[i * 4 + j] = 0.0f;
-            for (int k = 0; k < 4; k++) {
-                temp[i * 4 + j] += a[i * 4 + k] * b[k * 4 + j];
-            }
-        }
-    }
-    
-    for (int i = 0; i < 16; i++) {
-        result[i] = temp[i];
-    }
+    glm_mat4_mul(a, b, result);
 }
 
 /**
  * Apply translation to matrix
  */
 void mat4_translate(mat4 m, float x, float y, float z) {
-    m[12] += x;
-    m[13] += y;
-    m[14] += z;
+    vec3 translation = {x, y, z};
+    glm_translate(m, translation);
 }
 
 /**
  * Apply scale to matrix
  */
 void mat4_scale(mat4 m, float x, float y, float z) {
-    m[0] *= x;
-    m[5] *= y;
-    m[10] *= z;
+    vec3 scale = {x, y, z};
+    glm_scale(m, scale);
 }
 
 /**
  * Create perspective projection matrix
  */
 void mat4_perspective(mat4 m, float fov, float aspect, float near, float far) {
-    float tan_half_fov = tanf(fov * 0.5f);
-    
-    mat4_identity(m);
-    
-    m[0] = 1.0f / (aspect * tan_half_fov);
-    m[5] = 1.0f / tan_half_fov;
-    m[10] = -(far + near) / (far - near);
-    m[11] = -1.0f;
-    m[14] = -(2.0f * far * near) / (far - near);
-    m[15] = 0.0f;
+    glm_perspective(fov, aspect, near, far, m);
 }
 
 /**
@@ -944,10 +904,8 @@ static WGPUBuffer create_instance_buffer(WGPUDevice device,
             /* Convert EcsTransform3 to 4x4 matrix */
             mat4 transform_matrix;
             mat4_identity(transform_matrix);
-            mat4_translate(transform_matrix, 
-                          transforms[i].value[0], 
-                          transforms[i].value[1], 
-                          transforms[i].value[2]);
+            /* Copy the existing transform matrix */
+            glm_mat4_copy(transforms[i].value, transform_matrix);
             memcpy(dst, transform_matrix, 16 * sizeof(float));
         } else {
             /* Identity matrix */
@@ -1321,15 +1279,12 @@ WGPUShaderModule webgpu_create_shader_module(WGPUDevice device, const char *wgsl
         return NULL;
     }
     
-    WGPUShaderSourceWGSL wgsl_source_desc = {
+    WGPUShaderModuleWGSLDescriptor wgsl_source_desc = {
         .chain = {
             .next = NULL,
-            .sType = WGPUSType_ShaderSourceWGSL,
+            .sType = WGPUSType_ShaderModuleWGSLDescriptor,
         },
-        .code = {
-            .data = wgsl_source,
-            .length = strlen(wgsl_source),
-        },
+        .code = wgsl_source,
     };
     
     WGPUShaderModuleDescriptor shader_desc = {
