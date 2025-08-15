@@ -425,6 +425,47 @@ ECS_DTOR(WebGPURenderer, ptr, {
 })
 
 /**
+ * WebGPUGeometry component lifecycle functions
+ */
+ECS_CTOR(WebGPUGeometry, ptr, {
+    ecs_os_memset_t(ptr, 0, WebGPUGeometry);
+})
+
+ECS_DTOR(WebGPUGeometry, ptr, {
+    if (ptr->allocator) {
+        ecs_vec_fini_t(ptr->allocator, &ptr->transform_data, mat4);
+        ecs_vec_fini_t(ptr->allocator, &ptr->color_data, vec3);
+        ecs_vec_fini_t(ptr->allocator, &ptr->material_data, float);
+        flecs_allocator_fini(ptr->allocator);
+        ecs_os_free(ptr->allocator);
+    }
+    
+    if (ptr->query) {
+        ecs_query_fini(ptr->query);
+    }
+    
+    if (ptr->vertex_buffer != NULL) {
+        wgpuBufferRelease(ptr->vertex_buffer);
+    }
+    
+    if (ptr->index_buffer != NULL) {
+        wgpuBufferRelease(ptr->index_buffer);
+    }
+    
+    if (ptr->instance_buffer != NULL) {
+        wgpuBufferRelease(ptr->instance_buffer);
+    }
+    
+    if (ptr->pipeline != NULL) {
+        wgpuRenderPipelineRelease(ptr->pipeline);
+    }
+    
+    if (ptr->bind_group != NULL) {
+        wgpuBindGroupRelease(ptr->bind_group);
+    }
+})
+
+/**
  * Module import function
  */
 void FlecsSystemsWebGPUImport(ecs_world_t *world) {
@@ -475,8 +516,18 @@ void FlecsSystemsWebGPUImport(ecs_world_t *world) {
         })
     });
     
-    /* Import geometry and material subsystems */
-    webgpu_geometry_import(world);
+    /* Define geometry component with lifecycle hooks */
+    ECS_COMPONENT_DEFINE(world, WebGPUGeometry);
+    ecs_set_hooks(world, WebGPUGeometry, {
+        .ctor = ecs_ctor(WebGPUGeometry),
+        .dtor = ecs_dtor(WebGPUGeometry)
+    });
+    
+    /* Create geometry type entities */
+    ECS_ENTITY_DEFINE(world, WebGPUBoxGeometry, WebGPUGeometry);
+    ECS_ENTITY_DEFINE(world, WebGPURectangleGeometry, WebGPUGeometry);
+    
+    /* Import material subsystem */
     webgpu_material_import(world);
     
     ecs_trace("WebGPU: Module import completed");
@@ -488,10 +539,7 @@ void FlecsSystemsWebGPUImport(ecs_world_t *world) {
  */
 
 
-/* Geometry component declarations */
-ECS_COMPONENT_DECLARE(WebGPUGeometry);
-ECS_DECLARE(WebGPUBoxGeometry);
-ECS_DECLARE(WebGPURectangleGeometry);
+/* Use geometry components declared in main module */
 
 /* Box vertex data (positions + normals) */
 const float box_vertices[] = {
@@ -726,46 +774,7 @@ void webgpu_populate_geometry_buffers(WebGPUGeometry *geometry, ecs_query_t *que
     geometry->instance_count = ecs_vec_count(&geometry->transform_data);
 }
 
-/**
- * Component lifecycle functions
- */
-ECS_CTOR(WebGPUGeometry, ptr, {
-    ecs_os_memset_t(ptr, 0, WebGPUGeometry);
-})
-
-ECS_DTOR(WebGPUGeometry, ptr, {
-    if (ptr->allocator) {
-        ecs_vec_fini_t(ptr->allocator, &ptr->transform_data, mat4);
-        ecs_vec_fini_t(ptr->allocator, &ptr->color_data, vec3);
-        ecs_vec_fini_t(ptr->allocator, &ptr->material_data, float);
-        flecs_allocator_fini(ptr->allocator);
-        ecs_os_free(ptr->allocator);
-    }
-    
-    if (ptr->query) {
-        ecs_query_fini(ptr->query);
-    }
-    
-    if (ptr->vertex_buffer != NULL) {
-        wgpuBufferRelease(ptr->vertex_buffer);
-    }
-    
-    if (ptr->index_buffer != NULL) {
-        wgpuBufferRelease(ptr->index_buffer);
-    }
-    
-    if (ptr->instance_buffer != NULL) {
-        wgpuBufferRelease(ptr->instance_buffer);
-    }
-    
-    if (ptr->pipeline != NULL) {
-        wgpuRenderPipelineRelease(ptr->pipeline);
-    }
-    
-    if (ptr->bind_group != NULL) {
-        wgpuBindGroupRelease(ptr->bind_group);
-    }
-})
+/* Component lifecycle functions moved to main.c */
 
 /**
  * System to populate geometry buffers each frame
@@ -780,37 +789,7 @@ static void webgpu_populate_geometry_system(ecs_iter_t *it) {
     }
 }
 
-/**
- * Geometry subsystem import
- */
-void webgpu_geometry_import(ecs_world_t *world) {
-    ecs_trace("WebGPU: Importing geometry subsystem");
-    
-    /* Define geometry component with lifecycle hooks */
-    ecs_set_hooks(world, WebGPUGeometry, {
-        .ctor = ecs_ctor(WebGPUGeometry),
-        .dtor = ecs_dtor(WebGPUGeometry)
-    });
-    
-    /* Create geometry type entities */
-    ECS_ENTITY_DEFINE(world, WebGPUBoxGeometry, WebGPUGeometry);
-    ECS_ENTITY_DEFINE(world, WebGPURectangleGeometry, WebGPUGeometry);
-    
-    /* Initialize geometry instances */
-    WebGPUGeometry *box_geom = ecs_ensure(world, WebGPUBoxGeometry, WebGPUGeometry);
-    webgpu_init_box_geometry(world, box_geom);
-    ecs_modified(world, WebGPUBoxGeometry, WebGPUGeometry);
-    
-    WebGPUGeometry *rect_geom = ecs_ensure(world, WebGPURectangleGeometry, WebGPUGeometry);
-    webgpu_init_rectangle_geometry(world, rect_geom);
-    ecs_modified(world, WebGPURectangleGeometry, WebGPUGeometry);
-    
-    /* System to populate geometry buffers */
-    ECS_SYSTEM(world, webgpu_populate_geometry_system, EcsPreStore, 
-        [inout] WebGPUGeometry);
-    
-    ecs_trace("WebGPU: Geometry subsystem imported");
-}
+/* Geometry import moved to main.c to avoid component access issues */
 /**
  * @file math/math_utils.c
  * @brief Math utility functions for 3D transformations.
