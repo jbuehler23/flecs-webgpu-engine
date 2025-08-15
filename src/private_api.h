@@ -16,9 +16,13 @@ extern "C" {
 #include <math.h>
 
 /* Math types and operations */
-typedef float mat4[16];
-typedef float vec3[3];
-typedef float vec4[4];
+/* Always use cglm since it's available in the Flecs ecosystem */
+#include <cglm/cglm.h>
+
+/* Helper to convert cglm mat4 to flat array when needed */
+static inline void mat4_to_array(mat4 src, float dst[16]) {
+    memcpy(dst, src, sizeof(float) * 16);
+}
 
 /* Render batch for efficient GPU submission */
 typedef struct {
@@ -79,12 +83,21 @@ void webgpu_execute_render_batches(struct WebGPURenderer *renderer, WGPURenderPa
 /* Resource management */
 webgpu_resource_pool_t* webgpu_create_resource_pool(ecs_allocator_t *allocator);
 void webgpu_destroy_resource_pool(webgpu_resource_pool_t *pool);
-WGPUBuffer webgpu_create_buffer(WGPUDevice device, size_t size, WGPUBufferUsageFlags usage, const void *data);
+WGPUBuffer webgpu_create_buffer(WGPUDevice device, size_t size, WGPUBufferUsage usage, const void *data);
+void webgpu_update_buffer(WGPUDevice device, WGPUQueue queue, WGPUBuffer buffer, const void *data, size_t size, size_t offset);
 WGPUTexture webgpu_create_texture_2d(WGPUDevice device, uint32_t width, uint32_t height, WGPUTextureFormat format);
+WGPURenderPipeline webgpu_create_geometry_pipeline(WGPUDevice device, WGPUShaderModule vertex_shader, WGPUShaderModule fragment_shader);
+WGPUBuffer webgpu_create_camera_uniform_buffer(WGPUDevice device);
+WGPUBuffer webgpu_create_light_uniform_buffer(WGPUDevice device);
+WGPUBindGroup webgpu_create_camera_bind_group(WGPUDevice device, WGPUBindGroupLayout layout, WGPUBuffer uniform_buffer);
+WGPUBindGroup webgpu_create_light_bind_group(WGPUDevice device, WGPUBindGroupLayout layout, WGPUBuffer uniform_buffer);
 
 /* Shader utilities */
 WGPUShaderModule webgpu_create_shader_module(WGPUDevice device, const char *wgsl_source);
-WGPURenderPipeline webgpu_create_basic_pipeline(WGPUDevice device, WGPUShaderModule vertex, WGPUShaderModule fragment);
+
+/* Shader sources (embedded) */
+extern const char *basic_vertex_shader_source;
+extern const char *basic_fragment_shader_source;
 
 /* Math utilities */
 void mat4_identity(mat4 m);

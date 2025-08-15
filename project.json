@@ -16,19 +16,20 @@
         "amalgamate": true
     },
     "lang.c": {
-        "${os linux}": {
-            "lib": ["m", "dawn_native", "dawn_proc"]
-        },
         "${os darwin}": {
-            "lib": ["dawn_native", "dawn_proc"],
+            "include": ["../webgpu-headers"],
+            "cflags": ["-DWEBGPU_BACKEND_DAWN"],
+            "lib": ["objc"],
             "ldflags": [
                 "-framework Foundation",
                 "-framework CoreFoundation", 
                 "-framework IOKit",
-                "-framework Metal"
+                "-framework Metal",
+                "-framework QuartzCore"
             ]
         },
         "${target em}": {
+            "cflags": ["-DWEBGPU_BACKEND_EMSCRIPTEN"],
             "ldflags": [
                 "-sUSE_WEBGPU=1",
                 "-sASYNCIFY=1",

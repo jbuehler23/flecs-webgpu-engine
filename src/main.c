@@ -188,10 +188,17 @@ static void webgpu_render_system(ecs_iter_t *it) {
         ecs_trace("WebGPU: Canvas resize detected: %dx%d", renderer->width, renderer->height);
     }
     
-    /* Get current swap chain texture */
-    WGPUTextureView back_buffer = wgpuSwapChainGetCurrentTextureView(renderer->swap_chain);
+    /* Get current surface texture (modern WebGPU approach) */
+    WGPUSurfaceTexture surface_texture;
+    wgpuSurfaceGetCurrentTexture(renderer->surface, &surface_texture);
+    if (surface_texture.status != WGPUSurfaceGetCurrentTextureStatus_Success) {
+        ecs_warn("WebGPU: Failed to get current surface texture");
+        return;
+    }
+    
+    WGPUTextureView back_buffer = wgpuTextureCreateView(surface_texture.texture, NULL);
     if (!back_buffer) {
-        ecs_warn("WebGPU: Failed to get current swap chain texture");
+        ecs_warn("WebGPU: Failed to create texture view");
         return;
     }
     
@@ -232,7 +239,7 @@ static void webgpu_render_system(ecs_iter_t *it) {
     wgpuQueueSubmit(renderer->queue, 1, &command_buffer);
     
     /* Present frame */
-    wgpuSwapChainPresent(renderer->swap_chain);
+    wgpuSurfacePresent(renderer->surface);
     
     /* Cleanup */
     wgpuTextureViewRelease(back_buffer);
@@ -261,9 +268,7 @@ ECS_DTOR(WebGPURenderer, ptr, {
         ecs_query_fini(ptr->geometry_query);
     }
     
-    if (ptr->swap_chain) {
-        wgpuSwapChainRelease(ptr->swap_chain);
-    }
+    /* SwapChain no longer used in modern WebGPU */
     
     if (ptr->surface) {
         wgpuSurfaceRelease(ptr->surface);

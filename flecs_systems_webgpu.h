@@ -1,3 +1,5 @@
+// Comment out this line when using as DLL
+#define flecs_systems_webgpu_STATIC
 #ifndef FLECS_SYSTEMS_WEBGPU_H
 #define FLECS_SYSTEMS_WEBGPU_H
 

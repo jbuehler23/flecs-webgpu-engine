@@ -11,7 +11,7 @@ ECS_DECLARE(WebGPUBoxGeometry);
 ECS_DECLARE(WebGPURectangleGeometry);
 
 /* Box vertex data (positions + normals) */
-static const float box_vertices[] = {
+const float box_vertices[] = {
     /* Front face */
     -0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  0.0f, 0.0f,
      0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  1.0f, 0.0f,
@@ -50,7 +50,7 @@ static const float box_vertices[] = {
 };
 
 /* Box indices for triangle rendering */
-static const uint16_t box_indices[] = {
+const uint16_t box_indices[] = {
     0,  1,  2,    0,  2,  3,    /* Front face */
     4,  5,  6,    4,  6,  7,    /* Back face */
     8,  9,  10,   8,  10, 11,   /* Top face */
@@ -60,7 +60,7 @@ static const uint16_t box_indices[] = {
 };
 
 /* Rectangle vertex data (quad in XY plane) */
-static const float rectangle_vertices[] = {
+const float rectangle_vertices[] = {
     /* Position      Normal        UV */
     -0.5f, -0.5f, 0.0f,  0.0f, 0.0f, 1.0f,  0.0f, 0.0f,
      0.5f, -0.5f, 0.0f,  0.0f, 0.0f, 1.0f,  1.0f, 0.0f,
@@ -69,9 +69,15 @@ static const float rectangle_vertices[] = {
 };
 
 /* Rectangle indices */
-static const uint16_t rectangle_indices[] = {
+const uint16_t rectangle_indices[] = {
     0, 1, 2,    0, 2, 3
 };
+
+/* Geometry data counts */
+const uint32_t box_vertex_count = sizeof(box_vertices) / (8 * sizeof(float));
+const uint32_t box_index_count = sizeof(box_indices) / sizeof(uint16_t);
+const uint32_t rectangle_vertex_count = sizeof(rectangle_vertices) / (8 * sizeof(float));
+const uint32_t rectangle_index_count = sizeof(rectangle_indices) / sizeof(uint16_t);
 
 /**
  * Initialize box geometry
