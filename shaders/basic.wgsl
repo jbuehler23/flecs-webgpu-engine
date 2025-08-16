@@ -35,12 +35,14 @@ struct VertexOutput {
     @location(3) uv: vec2<f32>,
 };
 
-// Fragment shader uniforms
+// Fragment shader uniforms (exactly 40 bytes to match buffer layout)
 struct LightUniforms {
-    direction: vec3<f32>,
-    color: vec3<f32>,
-    ambient: vec3<f32>,
-    intensity: f32,
+    direction: vec3<f32>,    // 12 bytes
+    intensity: f32,          // 4 bytes  
+    color: vec3<f32>,        // 12 bytes
+    ambient_strength: f32,   // 4 bytes
+    ambient: vec2<f32>,      // 8 bytes
+                            // Total: 40 bytes exactly
 };
 
 @group(1) @binding(0) var<uniform> light: LightUniforms;

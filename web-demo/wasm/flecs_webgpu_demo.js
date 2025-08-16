@@ -185,10 +185,10 @@ function writeStackCookie() {
   // The stack grow downwards towards _emscripten_stack_get_end.
   // We write cookies to the final two words in the stack and detect if they are
   // ever overwritten.
-  HEAPU32[((max)>>2)] = 0x02135467;checkInt32(0x02135467);
-  HEAPU32[(((max)+(4))>>2)] = 0x89BACDFE;checkInt32(0x89BACDFE);
+  HEAPU32[((max)>>2)] = 0x02135467;
+  HEAPU32[(((max)+(4))>>2)] = 0x89BACDFE;
   // Also test the global address 0 for integrity.
-  HEAPU32[((0)>>2)] = 1668509029;checkInt32(1668509029);
+  HEAPU32[((0)>>2)] = 1668509029;
 }
 
 function checkStackCookie() {
@@ -330,31 +330,6 @@ function unexportedRuntimeSymbol(sym) {
   }
 }
 
-var MAX_UINT8  = (2 **  8) - 1;
-var MAX_UINT16 = (2 ** 16) - 1;
-var MAX_UINT32 = (2 ** 32) - 1;
-var MAX_UINT53 = (2 ** 53) - 1;
-var MAX_UINT64 = (2 ** 64) - 1;
-
-var MIN_INT8  = - (2 ** ( 8 - 1));
-var MIN_INT16 = - (2 ** (16 - 1));
-var MIN_INT32 = - (2 ** (32 - 1));
-var MIN_INT53 = - (2 ** (53 - 1));
-var MIN_INT64 = - (2 ** (64 - 1));
-
-function checkInt(value, bits, min, max) {
-  assert(Number.isInteger(Number(value)), `attempt to write non-integer (${value}) into integer heap`);
-  assert(value <= max, `value (${value}) too large to write as ${bits}-bit value`);
-  assert(value >= min, `value (${value}) too small to write as ${bits}-bit value`);
-}
-
-var checkInt1 = (value) => checkInt(value, 1, 1);
-var checkInt8 = (value) => checkInt(value, 8, MIN_INT8, MAX_UINT8);
-var checkInt16 = (value) => checkInt(value, 16, MIN_INT16, MAX_UINT16);
-var checkInt32 = (value) => checkInt(value, 32, MIN_INT32, MAX_UINT32);
-var checkInt53 = (value) => checkInt(value, 53, MIN_INT53, MAX_UINT53);
-var checkInt64 = (value) => checkInt(value, 64, MIN_INT64, MAX_UINT64);
-
 // end include: runtime_debug.js
 var readyPromiseResolve, readyPromiseReject;
 
@@ -428,8 +403,6 @@ function preRun() {
 function initRuntime() {
   assert(!runtimeInitialized);
   runtimeInitialized = true;
-
-  setStackLimits();
 
   checkStackCookie();
 
@@ -809,12 +782,6 @@ async function createWasm() {
       return '0x' + ptr.toString(16).padStart(8, '0');
     };
 
-  var setStackLimits = () => {
-      var stackLow = _emscripten_stack_get_base();
-      var stackHigh = _emscripten_stack_get_end();
-      ___set_stack_limits(stackLow, stackHigh);
-    };
-
   
     /**
      * @param {number} ptr
@@ -824,11 +791,11 @@ async function createWasm() {
   function setValue(ptr, value, type = 'i8') {
     if (type.endsWith('*')) type = '*';
     switch (type) {
-      case 'i1': HEAP8[ptr] = value;checkInt8(value); break;
-      case 'i8': HEAP8[ptr] = value;checkInt8(value); break;
-      case 'i16': HEAP16[((ptr)>>1)] = value;checkInt16(value); break;
-      case 'i32': HEAP32[((ptr)>>2)] = value;checkInt32(value); break;
-      case 'i64': HEAP64[((ptr)>>3)] = BigInt(value);checkInt64(value); break;
+      case 'i1': HEAP8[ptr] = value; break;
+      case 'i8': HEAP8[ptr] = value; break;
+      case 'i16': HEAP16[((ptr)>>1)] = value; break;
+      case 'i32': HEAP32[((ptr)>>2)] = value; break;
+      case 'i64': HEAP64[((ptr)>>3)] = BigInt(value); break;
       case 'float': HEAPF32[((ptr)>>2)] = value; break;
       case 'double': HEAPF64[((ptr)>>3)] = value; break;
       case '*': HEAPU32[((ptr)>>2)] = value; break;
@@ -927,16 +894,6 @@ async function createWasm() {
     };
   var ___assert_fail = (condition, filename, line, func) =>
       abort(`Assertion failed: ${UTF8ToString(condition)}, at: ` + [filename ? UTF8ToString(filename) : 'unknown filename', line, func ? UTF8ToString(func) : 'unknown function']);
-
-  
-  
-  var ___handle_stack_overflow = (requested) => {
-      var base = _emscripten_stack_get_base();
-      var end = _emscripten_stack_get_end();
-      abort(`stack overflow (Attempt to set SP to ${ptrToString(requested)}` +
-            `, with stack limits [${ptrToString(end)} - ${ptrToString(base)}` +
-            ']). If you require more stack space build with -sSTACK_SIZE=<bytes>');
-    };
 
   var initRandomFill = () => {
   
@@ -3848,7 +3805,7 @@ async function createWasm() {
               if (sock.recv_queue.length) {
                 bytes = sock.recv_queue[0].data.length;
               }
-              HEAP32[((arg)>>2)] = bytes;checkInt32(bytes);
+              HEAP32[((arg)>>2)] = bytes;
               return 0;
             case 21537:
               var on = HEAP32[((arg)>>2)];
@@ -4158,24 +4115,24 @@ async function createWasm() {
           addr = inetPton4(addr);
           zeroMemory(sa, 16);
           if (addrlen) {
-            HEAP32[((addrlen)>>2)] = 16;checkInt32(16);
+            HEAP32[((addrlen)>>2)] = 16;
           }
-          HEAP16[((sa)>>1)] = family;checkInt16(family);
-          HEAP32[(((sa)+(4))>>2)] = addr;checkInt32(addr);
-          HEAP16[(((sa)+(2))>>1)] = _htons(port);checkInt16(_htons(port));
+          HEAP16[((sa)>>1)] = family;
+          HEAP32[(((sa)+(4))>>2)] = addr;
+          HEAP16[(((sa)+(2))>>1)] = _htons(port);
           break;
         case 10:
           addr = inetPton6(addr);
           zeroMemory(sa, 28);
           if (addrlen) {
-            HEAP32[((addrlen)>>2)] = 28;checkInt32(28);
+            HEAP32[((addrlen)>>2)] = 28;
           }
-          HEAP32[((sa)>>2)] = family;checkInt32(family);
-          HEAP32[(((sa)+(8))>>2)] = addr[0];checkInt32(addr[0]);
-          HEAP32[(((sa)+(12))>>2)] = addr[1];checkInt32(addr[1]);
-          HEAP32[(((sa)+(16))>>2)] = addr[2];checkInt32(addr[2]);
-          HEAP32[(((sa)+(20))>>2)] = addr[3];checkInt32(addr[3]);
-          HEAP16[(((sa)+(2))>>1)] = _htons(port);checkInt16(_htons(port));
+          HEAP32[((sa)>>2)] = family;
+          HEAP32[(((sa)+(8))>>2)] = addr[0];
+          HEAP32[(((sa)+(12))>>2)] = addr[1];
+          HEAP32[(((sa)+(16))>>2)] = addr[2];
+          HEAP32[(((sa)+(20))>>2)] = addr[3];
+          HEAP16[(((sa)+(2))>>1)] = _htons(port);
           break;
         default:
           return 5;
@@ -4435,38 +4392,38 @@ async function createWasm() {
         return dir + '/' + path;
       },
   writeStat(buf, stat) {
-        HEAPU32[((buf)>>2)] = stat.dev;checkInt32(stat.dev);
-        HEAPU32[(((buf)+(4))>>2)] = stat.mode;checkInt32(stat.mode);
-        HEAPU32[(((buf)+(8))>>2)] = stat.nlink;checkInt32(stat.nlink);
-        HEAPU32[(((buf)+(12))>>2)] = stat.uid;checkInt32(stat.uid);
-        HEAPU32[(((buf)+(16))>>2)] = stat.gid;checkInt32(stat.gid);
-        HEAPU32[(((buf)+(20))>>2)] = stat.rdev;checkInt32(stat.rdev);
-        HEAP64[(((buf)+(24))>>3)] = BigInt(stat.size);checkInt64(stat.size);
-        HEAP32[(((buf)+(32))>>2)] = 4096;checkInt32(4096);
-        HEAP32[(((buf)+(36))>>2)] = stat.blocks;checkInt32(stat.blocks);
+        HEAPU32[((buf)>>2)] = stat.dev;
+        HEAPU32[(((buf)+(4))>>2)] = stat.mode;
+        HEAPU32[(((buf)+(8))>>2)] = stat.nlink;
+        HEAPU32[(((buf)+(12))>>2)] = stat.uid;
+        HEAPU32[(((buf)+(16))>>2)] = stat.gid;
+        HEAPU32[(((buf)+(20))>>2)] = stat.rdev;
+        HEAP64[(((buf)+(24))>>3)] = BigInt(stat.size);
+        HEAP32[(((buf)+(32))>>2)] = 4096;
+        HEAP32[(((buf)+(36))>>2)] = stat.blocks;
         var atime = stat.atime.getTime();
         var mtime = stat.mtime.getTime();
         var ctime = stat.ctime.getTime();
-        HEAP64[(((buf)+(40))>>3)] = BigInt(Math.floor(atime / 1000));checkInt64(Math.floor(atime / 1000));
-        HEAPU32[(((buf)+(48))>>2)] = (atime % 1000) * 1000 * 1000;checkInt32((atime % 1000) * 1000 * 1000);
-        HEAP64[(((buf)+(56))>>3)] = BigInt(Math.floor(mtime / 1000));checkInt64(Math.floor(mtime / 1000));
-        HEAPU32[(((buf)+(64))>>2)] = (mtime % 1000) * 1000 * 1000;checkInt32((mtime % 1000) * 1000 * 1000);
-        HEAP64[(((buf)+(72))>>3)] = BigInt(Math.floor(ctime / 1000));checkInt64(Math.floor(ctime / 1000));
-        HEAPU32[(((buf)+(80))>>2)] = (ctime % 1000) * 1000 * 1000;checkInt32((ctime % 1000) * 1000 * 1000);
-        HEAP64[(((buf)+(88))>>3)] = BigInt(stat.ino);checkInt64(stat.ino);
+        HEAP64[(((buf)+(40))>>3)] = BigInt(Math.floor(atime / 1000));
+        HEAPU32[(((buf)+(48))>>2)] = (atime % 1000) * 1000 * 1000;
+        HEAP64[(((buf)+(56))>>3)] = BigInt(Math.floor(mtime / 1000));
+        HEAPU32[(((buf)+(64))>>2)] = (mtime % 1000) * 1000 * 1000;
+        HEAP64[(((buf)+(72))>>3)] = BigInt(Math.floor(ctime / 1000));
+        HEAPU32[(((buf)+(80))>>2)] = (ctime % 1000) * 1000 * 1000;
+        HEAP64[(((buf)+(88))>>3)] = BigInt(stat.ino);
         return 0;
       },
   writeStatFs(buf, stats) {
-        HEAPU32[(((buf)+(4))>>2)] = stats.bsize;checkInt32(stats.bsize);
-        HEAPU32[(((buf)+(60))>>2)] = stats.bsize;checkInt32(stats.bsize);
-        HEAP64[(((buf)+(8))>>3)] = BigInt(stats.blocks);checkInt64(stats.blocks);
-        HEAP64[(((buf)+(16))>>3)] = BigInt(stats.bfree);checkInt64(stats.bfree);
-        HEAP64[(((buf)+(24))>>3)] = BigInt(stats.bavail);checkInt64(stats.bavail);
-        HEAP64[(((buf)+(32))>>3)] = BigInt(stats.files);checkInt64(stats.files);
-        HEAP64[(((buf)+(40))>>3)] = BigInt(stats.ffree);checkInt64(stats.ffree);
-        HEAPU32[(((buf)+(48))>>2)] = stats.fsid;checkInt32(stats.fsid);
-        HEAPU32[(((buf)+(64))>>2)] = stats.flags;checkInt32(stats.flags);  // ST_NOSUID
-        HEAPU32[(((buf)+(56))>>2)] = stats.namelen;checkInt32(stats.namelen);
+        HEAPU32[(((buf)+(4))>>2)] = stats.bsize;
+        HEAPU32[(((buf)+(60))>>2)] = stats.bsize;
+        HEAP64[(((buf)+(8))>>3)] = BigInt(stats.blocks);
+        HEAP64[(((buf)+(16))>>3)] = BigInt(stats.bfree);
+        HEAP64[(((buf)+(24))>>3)] = BigInt(stats.bavail);
+        HEAP64[(((buf)+(32))>>3)] = BigInt(stats.files);
+        HEAP64[(((buf)+(40))>>3)] = BigInt(stats.ffree);
+        HEAPU32[(((buf)+(48))>>2)] = stats.fsid;
+        HEAPU32[(((buf)+(64))>>2)] = stats.flags;  // ST_NOSUID
+        HEAPU32[(((buf)+(56))>>2)] = stats.namelen;
       },
   doMsync(addr, stream, len, flags, offset) {
         if (!FS.isFile(stream.node.mode)) {
@@ -4521,7 +4478,7 @@ async function createWasm() {
           var arg = syscallGetVarargP();
           var offset = 0;
           // We're always unlocked.
-          HEAP16[(((arg)+(offset))>>1)] = 2;checkInt16(2);
+          HEAP16[(((arg)+(offset))>>1)] = 2;
           return 0;
         }
         case 13:
@@ -4555,12 +4512,12 @@ async function createWasm() {
           if (stream.tty.ops.ioctl_tcgets) {
             var termios = stream.tty.ops.ioctl_tcgets(stream);
             var argp = syscallGetVarargP();
-            HEAP32[((argp)>>2)] = termios.c_iflag || 0;checkInt32(termios.c_iflag || 0);
-            HEAP32[(((argp)+(4))>>2)] = termios.c_oflag || 0;checkInt32(termios.c_oflag || 0);
-            HEAP32[(((argp)+(8))>>2)] = termios.c_cflag || 0;checkInt32(termios.c_cflag || 0);
-            HEAP32[(((argp)+(12))>>2)] = termios.c_lflag || 0;checkInt32(termios.c_lflag || 0);
+            HEAP32[((argp)>>2)] = termios.c_iflag || 0;
+            HEAP32[(((argp)+(4))>>2)] = termios.c_oflag || 0;
+            HEAP32[(((argp)+(8))>>2)] = termios.c_cflag || 0;
+            HEAP32[(((argp)+(12))>>2)] = termios.c_lflag || 0;
             for (var i = 0; i < 32; i++) {
-              HEAP8[(argp + i)+(17)] = termios.c_cc[i] || 0;checkInt8(termios.c_cc[i] || 0);
+              HEAP8[(argp + i)+(17)] = termios.c_cc[i] || 0;
             }
             return 0;
           }
@@ -4593,7 +4550,7 @@ async function createWasm() {
         case 21519: {
           if (!stream.tty) return -59;
           var argp = syscallGetVarargP();
-          HEAP32[((argp)>>2)] = 0;checkInt32(0);
+          HEAP32[((argp)>>2)] = 0;
           return 0;
         }
         case 21520: {
@@ -4612,8 +4569,8 @@ async function createWasm() {
           if (stream.tty.ops.ioctl_tiocgwinsz) {
             var winsize = stream.tty.ops.ioctl_tiocgwinsz(stream.tty);
             var argp = syscallGetVarargP();
-            HEAP16[((argp)>>1)] = winsize[0];checkInt16(winsize[0]);
-            HEAP16[(((argp)+(2))>>1)] = winsize[1];checkInt16(winsize[1]);
+            HEAP16[((argp)>>1)] = winsize[0];
+            HEAP16[(((argp)+(2))>>1)] = winsize[1];
           }
           return 0;
         }
@@ -4763,16 +4720,374 @@ async function createWasm() {
       }
       // "now" is in ms, and wasi times are in ns.
       var nsec = Math.round(now * 1000 * 1000);
-      HEAP64[((ptime)>>3)] = BigInt(nsec);checkInt64(nsec);
+      HEAP64[((ptime)>>3)] = BigInt(nsec);
       return 0;
     ;
   }
+
+  var readEmAsmArgsArray = [];
+  var readEmAsmArgs = (sigPtr, buf) => {
+      // Nobody should have mutated _readEmAsmArgsArray underneath us to be something else than an array.
+      assert(Array.isArray(readEmAsmArgsArray));
+      // The input buffer is allocated on the stack, so it must be stack-aligned.
+      assert(buf % 16 == 0);
+      readEmAsmArgsArray.length = 0;
+      var ch;
+      // Most arguments are i32s, so shift the buffer pointer so it is a plain
+      // index into HEAP32.
+      while (ch = HEAPU8[sigPtr++]) {
+        var chr = String.fromCharCode(ch);
+        var validChars = ['d', 'f', 'i', 'p'];
+        // In WASM_BIGINT mode we support passing i64 values as bigint.
+        validChars.push('j');
+        assert(validChars.includes(chr), `Invalid character ${ch}("${chr}") in readEmAsmArgs! Use only [${validChars}], and do not specify "v" for void return argument.`);
+        // Floats are always passed as doubles, so all types except for 'i'
+        // are 8 bytes and require alignment.
+        var wide = (ch != 105);
+        wide &= (ch != 112);
+        buf += wide && (buf % 8) ? 4 : 0;
+        readEmAsmArgsArray.push(
+          // Special case for pointers under wasm64 or CAN_ADDRESS_2GB mode.
+          ch == 112 ? HEAPU32[((buf)>>2)] :
+          ch == 106 ? HEAP64[((buf)>>3)] :
+          ch == 105 ?
+            HEAP32[((buf)>>2)] :
+            HEAPF64[((buf)>>3)]
+        );
+        buf += wide ? 8 : 4;
+      }
+      return readEmAsmArgsArray;
+    };
+  var runEmAsmFunction = (code, sigPtr, argbuf) => {
+      var args = readEmAsmArgs(sigPtr, argbuf);
+      assert(ASM_CONSTS.hasOwnProperty(code), `No EM_ASM constant found at address ${code}.  The loaded WebAssembly file is likely out of sync with the generated JavaScript.`);
+      return ASM_CONSTS[code](...args);
+    };
+  var _emscripten_asm_const_int = (code, sigPtr, argbuf) => {
+      return runEmAsmFunction(code, sigPtr, argbuf);
+    };
+
+  
+  var _emscripten_set_main_loop_timing = (mode, value) => {
+      MainLoop.timingMode = mode;
+      MainLoop.timingValue = value;
+  
+      if (!MainLoop.func) {
+        err('emscripten_set_main_loop_timing: Cannot set timing mode for main loop since a main loop does not exist! Call emscripten_set_main_loop first to set one up.');
+        return 1; // Return non-zero on failure, can't set timing mode when there is no main loop.
+      }
+  
+      if (!MainLoop.running) {
+        
+        MainLoop.running = true;
+      }
+      if (mode == 0) {
+        MainLoop.scheduler = function MainLoop_scheduler_setTimeout() {
+          var timeUntilNextTick = Math.max(0, MainLoop.tickStartTime + value - _emscripten_get_now())|0;
+          setTimeout(MainLoop.runner, timeUntilNextTick); // doing this each time means that on exception, we stop
+        };
+        MainLoop.method = 'timeout';
+      } else if (mode == 1) {
+        MainLoop.scheduler = function MainLoop_scheduler_rAF() {
+          MainLoop.requestAnimationFrame(MainLoop.runner);
+        };
+        MainLoop.method = 'rAF';
+      } else if (mode == 2) {
+        if (typeof MainLoop.setImmediate == 'undefined') {
+          if (typeof setImmediate == 'undefined') {
+            // Emulate setImmediate. (note: not a complete polyfill, we don't emulate clearImmediate() to keep code size to minimum, since not needed)
+            var setImmediates = [];
+            var emscriptenMainLoopMessageId = 'setimmediate';
+            /** @param {Event} event */
+            var MainLoop_setImmediate_messageHandler = (event) => {
+              // When called in current thread or Worker, the main loop ID is structured slightly different to accommodate for --proxy-to-worker runtime listening to Worker events,
+              // so check for both cases.
+              if (event.data === emscriptenMainLoopMessageId || event.data.target === emscriptenMainLoopMessageId) {
+                event.stopPropagation();
+                setImmediates.shift()();
+              }
+            };
+            addEventListener("message", MainLoop_setImmediate_messageHandler, true);
+            MainLoop.setImmediate = /** @type{function(function(): ?, ...?): number} */((func) => {
+              setImmediates.push(func);
+              if (ENVIRONMENT_IS_WORKER) {
+                Module['setImmediates'] ??= [];
+                Module['setImmediates'].push(func);
+                postMessage({target: emscriptenMainLoopMessageId}); // In --proxy-to-worker, route the message via proxyClient.js
+              } else postMessage(emscriptenMainLoopMessageId, "*"); // On the main thread, can just send the message to itself.
+            });
+          } else {
+            MainLoop.setImmediate = setImmediate;
+          }
+        }
+        MainLoop.scheduler = function MainLoop_scheduler_setImmediate() {
+          MainLoop.setImmediate(MainLoop.runner);
+        };
+        MainLoop.method = 'immediate';
+      }
+      return 0;
+    };
+  
+  
+  
+  var runtimeKeepaliveCounter = 0;
+  var keepRuntimeAlive = () => noExitRuntime || runtimeKeepaliveCounter > 0;
+  var _proc_exit = (code) => {
+      EXITSTATUS = code;
+      if (!keepRuntimeAlive()) {
+        Module['onExit']?.(code);
+        ABORT = true;
+      }
+      quit_(code, new ExitStatus(code));
+    };
+  
+  
+  /** @suppress {duplicate } */
+  /** @param {boolean|number=} implicit */
+  var exitJS = (status, implicit) => {
+      EXITSTATUS = status;
+  
+      checkUnflushedContent();
+  
+      // if exit() was called explicitly, warn the user if the runtime isn't actually being shut down
+      if (keepRuntimeAlive() && !implicit) {
+        var msg = `program exited (with status: ${status}), but keepRuntimeAlive() is set (counter=${runtimeKeepaliveCounter}) due to an async operation, so halting execution but not exiting the runtime or preventing further async execution (you can use emscripten_force_exit, if you want to force a true shutdown)`;
+        readyPromiseReject?.(msg);
+        err(msg);
+      }
+  
+      _proc_exit(status);
+    };
+  var _exit = exitJS;
+  
+  var handleException = (e) => {
+      // Certain exception types we do not treat as errors since they are used for
+      // internal control flow.
+      // 1. ExitStatus, which is thrown by exit()
+      // 2. "unwind", which is thrown by emscripten_unwind_to_js_event_loop() and others
+      //    that wish to return to JS event loop.
+      if (e instanceof ExitStatus || e == 'unwind') {
+        return EXITSTATUS;
+      }
+      checkStackCookie();
+      if (e instanceof WebAssembly.RuntimeError) {
+        if (_emscripten_stack_get_current() <= 0) {
+          err('Stack overflow detected.  You can try increasing -sSTACK_SIZE (currently set to 1000000)');
+        }
+      }
+      quit_(1, e);
+    };
+  
+  var maybeExit = () => {
+      if (!keepRuntimeAlive()) {
+        try {
+          _exit(EXITSTATUS);
+        } catch (e) {
+          handleException(e);
+        }
+      }
+    };
+  
+    /**
+     * @param {number=} arg
+     * @param {boolean=} noSetTiming
+     */
+  var setMainLoop = (iterFunc, fps, simulateInfiniteLoop, arg, noSetTiming) => {
+      assert(!MainLoop.func, 'emscripten_set_main_loop: there can only be one main loop function at once: call emscripten_cancel_main_loop to cancel the previous one before setting a new one with different parameters.');
+      MainLoop.func = iterFunc;
+      MainLoop.arg = arg;
+  
+      var thisMainLoopId = MainLoop.currentlyRunningMainloop;
+      function checkIsRunning() {
+        if (thisMainLoopId < MainLoop.currentlyRunningMainloop) {
+          
+          maybeExit();
+          return false;
+        }
+        return true;
+      }
+  
+      // We create the loop runner here but it is not actually running until
+      // _emscripten_set_main_loop_timing is called (which might happen a
+      // later time).  This member signifies that the current runner has not
+      // yet been started so that we can call runtimeKeepalivePush when it
+      // gets it timing set for the first time.
+      MainLoop.running = false;
+      MainLoop.runner = function MainLoop_runner() {
+        if (ABORT) return;
+        if (MainLoop.queue.length > 0) {
+          var start = Date.now();
+          var blocker = MainLoop.queue.shift();
+          blocker.func(blocker.arg);
+          if (MainLoop.remainingBlockers) {
+            var remaining = MainLoop.remainingBlockers;
+            var next = remaining%1 == 0 ? remaining-1 : Math.floor(remaining);
+            if (blocker.counted) {
+              MainLoop.remainingBlockers = next;
+            } else {
+              // not counted, but move the progress along a tiny bit
+              next = next + 0.5; // do not steal all the next one's progress
+              MainLoop.remainingBlockers = (8*remaining + next)/9;
+            }
+          }
+          MainLoop.updateStatus();
+  
+          // catches pause/resume main loop from blocker execution
+          if (!checkIsRunning()) return;
+  
+          setTimeout(MainLoop.runner, 0);
+          return;
+        }
+  
+        // catch pauses from non-main loop sources
+        if (!checkIsRunning()) return;
+  
+        // Implement very basic swap interval control
+        MainLoop.currentFrameNumber = MainLoop.currentFrameNumber + 1 | 0;
+        if (MainLoop.timingMode == 1 && MainLoop.timingValue > 1 && MainLoop.currentFrameNumber % MainLoop.timingValue != 0) {
+          // Not the scheduled time to render this frame - skip.
+          MainLoop.scheduler();
+          return;
+        } else if (MainLoop.timingMode == 0) {
+          MainLoop.tickStartTime = _emscripten_get_now();
+        }
+  
+        if (MainLoop.method === 'timeout' && Module['ctx']) {
+          warnOnce('Looks like you are rendering without using requestAnimationFrame for the main loop. You should use 0 for the frame rate in emscripten_set_main_loop in order to use requestAnimationFrame, as that can greatly improve your frame rates!');
+          MainLoop.method = ''; // just warn once per call to set main loop
+        }
+  
+        MainLoop.runIter(iterFunc);
+  
+        // catch pauses from the main loop itself
+        if (!checkIsRunning()) return;
+  
+        MainLoop.scheduler();
+      }
+  
+      if (!noSetTiming) {
+        if (fps > 0) {
+          _emscripten_set_main_loop_timing(0, 1000.0 / fps);
+        } else {
+          // Do rAF by rendering each frame (no decimating)
+          _emscripten_set_main_loop_timing(1, 1);
+        }
+  
+        MainLoop.scheduler();
+      }
+  
+      if (simulateInfiniteLoop) {
+        throw 'unwind';
+      }
+    };
+  
+  
+  var callUserCallback = (func) => {
+      if (ABORT) {
+        err('user callback triggered after runtime exited or application aborted.  Ignoring.');
+        return;
+      }
+      try {
+        func();
+        maybeExit();
+      } catch (e) {
+        handleException(e);
+      }
+    };
+  
+  var MainLoop = {
+  running:false,
+  scheduler:null,
+  method:"",
+  currentlyRunningMainloop:0,
+  func:null,
+  arg:0,
+  timingMode:0,
+  timingValue:0,
+  currentFrameNumber:0,
+  queue:[],
+  preMainLoop:[],
+  postMainLoop:[],
+  pause() {
+        MainLoop.scheduler = null;
+        // Incrementing this signals the previous main loop that it's now become old, and it must return.
+        MainLoop.currentlyRunningMainloop++;
+      },
+  resume() {
+        MainLoop.currentlyRunningMainloop++;
+        var timingMode = MainLoop.timingMode;
+        var timingValue = MainLoop.timingValue;
+        var func = MainLoop.func;
+        MainLoop.func = null;
+        // do not set timing and call scheduler, we will do it on the next lines
+        setMainLoop(func, 0, false, MainLoop.arg, true);
+        _emscripten_set_main_loop_timing(timingMode, timingValue);
+        MainLoop.scheduler();
+      },
+  updateStatus() {
+        if (Module['setStatus']) {
+          var message = Module['statusMessage'] || 'Please wait...';
+          var remaining = MainLoop.remainingBlockers ?? 0;
+          var expected = MainLoop.expectedBlockers ?? 0;
+          if (remaining) {
+            if (remaining < expected) {
+              Module['setStatus'](`{message} ({expected - remaining}/{expected})`);
+            } else {
+              Module['setStatus'](message);
+            }
+          } else {
+            Module['setStatus']('');
+          }
+        }
+      },
+  init() {
+        Module['preMainLoop'] && MainLoop.preMainLoop.push(Module['preMainLoop']);
+        Module['postMainLoop'] && MainLoop.postMainLoop.push(Module['postMainLoop']);
+      },
+  runIter(func) {
+        if (ABORT) return;
+        for (var pre of MainLoop.preMainLoop) {
+          if (pre() === false) {
+            return; // |return false| skips a frame
+          }
+        }
+        callUserCallback(func);
+        for (var post of MainLoop.postMainLoop) {
+          post();
+        }
+        checkStackCookie();
+      },
+  nextRAF:0,
+  fakeRequestAnimationFrame(func) {
+        // try to keep 60fps between calls to here
+        var now = Date.now();
+        if (MainLoop.nextRAF === 0) {
+          MainLoop.nextRAF = now + 1000/60;
+        } else {
+          while (now + 2 >= MainLoop.nextRAF) { // fudge a little, to avoid timer jitter causing us to do lots of delay:0
+            MainLoop.nextRAF += 1000/60;
+          }
+        }
+        var delay = Math.max(MainLoop.nextRAF - now, 0);
+        setTimeout(func, delay);
+      },
+  requestAnimationFrame(func) {
+        if (typeof requestAnimationFrame == 'function') {
+          requestAnimationFrame(func);
+        } else {
+          MainLoop.fakeRequestAnimationFrame(func);
+        }
+      },
+  };
+  var _emscripten_cancel_main_loop = () => {
+      MainLoop.pause();
+      MainLoop.func = null;
+    };
 
 
   var _emscripten_err = (str) => err(UTF8ToString(str));
 
 
-  
   var getHeapMax = () =>
       // Stay one Wasm page short of 4GB: while e.g. Chrome is able to allocate
       // full 4GB Wasm memories, the size will wrap back to 0 bytes in Wasm side
@@ -4842,10 +5157,7 @@ async function createWasm() {
   
         var newSize = Math.min(maxHeapSize, alignMemory(Math.max(requestedSize, overGrownHeapSize), 65536));
   
-        var t0 = _emscripten_get_now();
         var replacement = growMemory(newSize);
-        var t1 = _emscripten_get_now();
-        dbg(`Heap resize call from ${oldSize} to ${newSize} took ${(t1 - t0)} msecs. Success: ${!!replacement}`);
         if (replacement) {
   
           return true;
@@ -4853,6 +5165,11 @@ async function createWasm() {
       }
       err(`Failed to grow the heap from ${oldSize} bytes to ${newSize} bytes, not enough memory!`);
       return false;
+    };
+
+  var _emscripten_set_main_loop = (func, fps, simulateInfiniteLoop) => {
+      var iterFunc = (() => dynCall_v(func));
+      setMainLoop(iterFunc, fps, simulateInfiniteLoop);
     };
 
   function _fd_close(fd) {
@@ -4890,7 +5207,7 @@ async function createWasm() {
   
       var stream = SYSCALLS.getStreamFromFD(fd);
       var num = doReadv(stream, iov, iovcnt);
-      HEAPU32[((pnum)>>2)] = num;checkInt32(num);
+      HEAPU32[((pnum)>>2)] = num;
       return 0;
     } catch (e) {
     if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
@@ -4908,7 +5225,7 @@ async function createWasm() {
       if (isNaN(offset)) return 61;
       var stream = SYSCALLS.getStreamFromFD(fd);
       FS.llseek(stream, offset, whence);
-      HEAP64[((newOffset)>>3)] = BigInt(stream.position);checkInt64(stream.position);
+      HEAP64[((newOffset)>>3)] = BigInt(stream.position);
       if (stream.getdents && offset === 0 && whence === 0) stream.getdents = null; // reset readdir state
       return 0;
     } catch (e) {
@@ -4944,7 +5261,7 @@ async function createWasm() {
   
       var stream = SYSCALLS.getStreamFromFD(fd);
       var num = doWritev(stream, iov, iovcnt);
-      HEAPU32[((pnum)>>2)] = num;checkInt32(num);
+      HEAPU32[((pnum)>>2)] = num;
       return 0;
     } catch (e) {
     if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
@@ -5170,11 +5487,11 @@ async function createWasm() {
   
         function setLimitValueU32(name, limitOffset) {
           var limitValue = limits[name];
-          HEAP32[(((limitsOutPtr)+(limitOffset))>>2)] = limitValue;checkInt32(limitValue);
+          HEAP32[(((limitsOutPtr)+(limitOffset))>>2)] = limitValue;
         }
         function setLimitValueU64(name, limitOffset) {
           var limitValue = limits[name];
-          HEAP64[(((limitsOutPtr)+(limitOffset))>>3)] = BigInt(limitValue);checkInt64(limitValue);
+          HEAP64[(((limitsOutPtr)+(limitOffset))>>3)] = BigInt(limitValue);
         }
     
         setLimitValueU32('maxTextureDimension1D', 0);
@@ -5289,6 +5606,118 @@ async function createWasm() {
   },
   };
   var _wgpuAdapterRelease = (id) => WebGPU.mgrAdapter.release(id);
+
+  
+  
+  
+  var _wgpuAdapterRequestDevice = (adapterId, descriptor, callback, userdata) => {
+      var adapter = WebGPU.mgrAdapter.get(adapterId);
+  
+      var desc = {};
+      if (descriptor) {
+        assert(descriptor);assert(HEAPU32[((descriptor)>>2)] === 0);
+        var requiredFeatureCount = HEAPU32[(((descriptor)+(8))>>2)];
+        if (requiredFeatureCount) {
+          var requiredFeaturesPtr = HEAPU32[(((descriptor)+(12))>>2)];
+          // requiredFeaturesPtr is a pointer to an array of FeatureName which is an enum of size uint32_t
+          desc["requiredFeatures"] = Array.from(HEAPU32.subarray((((requiredFeaturesPtr)>>2)), ((requiredFeaturesPtr + requiredFeatureCount * 4)>>2)),
+            (feature) => WebGPU.FeatureName[feature]);
+        }
+        var requiredLimitsPtr = HEAPU32[(((descriptor)+(16))>>2)];
+        if (requiredLimitsPtr) {
+          assert(requiredLimitsPtr);assert(HEAPU32[((requiredLimitsPtr)>>2)] === 0);
+          var limitsPtr = requiredLimitsPtr + 8;
+          var requiredLimits = {};
+          function setLimitU32IfDefined(name, limitOffset) {
+            var ptr = limitsPtr + limitOffset;
+            var value = HEAPU32[((ptr)>>2)];
+            if (value != 4294967295) {
+              requiredLimits[name] = value;
+            }
+          }
+          function setLimitU64IfDefined(name, limitOffset) {
+            var ptr = limitsPtr + limitOffset;
+            // Handle WGPU_LIMIT_U64_UNDEFINED.
+            var limitPart1 = HEAPU32[((ptr)>>2)];
+            var limitPart2 = HEAPU32[(((ptr)+(4))>>2)];
+            if (limitPart1 != 0xFFFFFFFF || limitPart2 != 0xFFFFFFFF) {
+              requiredLimits[name] = HEAPU32[(((ptr + 4))>>2)] * 0x100000000 + HEAPU32[((ptr)>>2)]
+            }
+          }
+  
+          setLimitU32IfDefined("maxTextureDimension1D", 0);
+          setLimitU32IfDefined("maxTextureDimension2D", 4);
+          setLimitU32IfDefined("maxTextureDimension3D", 8);
+          setLimitU32IfDefined("maxTextureArrayLayers", 12);
+          setLimitU32IfDefined("maxBindGroups", 16);
+          setLimitU32IfDefined('maxBindGroupsPlusVertexBuffers', 20);
+          setLimitU32IfDefined("maxDynamicUniformBuffersPerPipelineLayout", 28);
+          setLimitU32IfDefined("maxDynamicStorageBuffersPerPipelineLayout", 32);
+          setLimitU32IfDefined("maxSampledTexturesPerShaderStage", 36);
+          setLimitU32IfDefined("maxSamplersPerShaderStage", 40);
+          setLimitU32IfDefined("maxStorageBuffersPerShaderStage", 44);
+          setLimitU32IfDefined("maxStorageTexturesPerShaderStage", 48);
+          setLimitU32IfDefined("maxUniformBuffersPerShaderStage", 52);
+          setLimitU32IfDefined("minUniformBufferOffsetAlignment", 72);
+          setLimitU32IfDefined("minStorageBufferOffsetAlignment", 76);
+          setLimitU64IfDefined("maxUniformBufferBindingSize", 56);
+          setLimitU64IfDefined("maxStorageBufferBindingSize", 64);
+          setLimitU32IfDefined("maxVertexBuffers", 80);
+          setLimitU64IfDefined("maxBufferSize", 88);
+          setLimitU32IfDefined("maxVertexAttributes", 96);
+          setLimitU32IfDefined("maxVertexBufferArrayStride", 100);
+          setLimitU32IfDefined("maxInterStageShaderComponents", 104);
+          setLimitU32IfDefined("maxInterStageShaderVariables", 108);
+          setLimitU32IfDefined("maxColorAttachments", 112);
+          setLimitU32IfDefined("maxColorAttachmentBytesPerSample", 116);
+          setLimitU32IfDefined("maxComputeWorkgroupStorageSize", 120);
+          setLimitU32IfDefined("maxComputeInvocationsPerWorkgroup", 124);
+          setLimitU32IfDefined("maxComputeWorkgroupSizeX", 128);
+          setLimitU32IfDefined("maxComputeWorkgroupSizeY", 132);
+          setLimitU32IfDefined("maxComputeWorkgroupSizeZ", 136);
+          setLimitU32IfDefined("maxComputeWorkgroupsPerDimension", 140);
+          desc["requiredLimits"] = requiredLimits;
+        }
+  
+        var defaultQueuePtr = HEAPU32[(((descriptor)+(20))>>2)];
+        if (defaultQueuePtr) {
+          var defaultQueueDesc = {};
+          var labelPtr = HEAPU32[(((defaultQueuePtr)+(4))>>2)];
+          if (labelPtr) defaultQueueDesc["label"] = UTF8ToString(labelPtr);
+          desc["defaultQueue"] = defaultQueueDesc;
+        }
+  
+        var deviceLostCallbackPtr = HEAPU32[(((descriptor)+(28))>>2)];
+        var deviceLostUserdataPtr = HEAPU32[(((descriptor)+(32))>>2)];
+  
+        var labelPtr = HEAPU32[(((descriptor)+(4))>>2)];
+        if (labelPtr) desc["label"] = UTF8ToString(labelPtr);
+      }
+  
+      
+      adapter.requestDevice(desc).then((device) => {
+        
+        callUserCallback(() => {
+          var deviceWrapper = { queueId: WebGPU.mgrQueue.create(device.queue) };
+          var deviceId = WebGPU.mgrDevice.create(device, deviceWrapper);
+          if (deviceLostCallbackPtr) {
+            device.lost.then((info) => {
+              callUserCallback(() => WebGPU.errorCallback(deviceLostCallbackPtr,
+                WebGPU.Int_DeviceLostReason[info.reason], info.message, deviceLostUserdataPtr));
+            });
+          }
+          ((a1, a2, a3, a4) => dynCall_viiii(callback, a1, a2, a3, a4))(0, deviceId, 0, userdata);
+        });
+      }, function(ex) {
+        
+        callUserCallback(() => {
+          var sp = stackSave();
+          var messagePtr = stringToUTF8OnStack(ex.message);
+          ((a1, a2, a3, a4) => dynCall_viiii(callback, a1, a2, a3, a4))(1, 0, messagePtr, userdata);
+          stackRestore(sp);
+        });
+      });
+    };
 
   var _wgpuBindGroupLayoutRelease = (id) => WebGPU.mgrBindGroupLayout.release(id);
 
@@ -5880,7 +6309,36 @@ async function createWasm() {
       return WebGPU.mgrShaderModule.create(device.createShaderModule(desc));
     };
 
+  var _wgpuDeviceGetQueue = (deviceId) => {
+      var queueId = WebGPU.mgrDevice.objects[deviceId].queueId;
+      assert(queueId, 'wgpuDeviceGetQueue: queue was missing or null');
+      // Returns a new reference to the existing queue.
+      WebGPU.mgrQueue.reference(queueId);
+      return queueId;
+    };
+
   var _wgpuDeviceRelease = (id) => WebGPU.mgrDevice.release(id);
+
+  
+  var _wgpuDeviceSetUncapturedErrorCallback = (deviceId, callback, userdata) => {
+      var device = WebGPU.mgrDevice.get(deviceId);
+      device.onuncapturederror = function(ev) {
+        // This will skip the callback if the runtime is no longer alive.
+        callUserCallback(() => {
+          // WGPUErrorType type, const char* message, void* userdata
+          var Validation = 0x00000001;
+          var OutOfMemory = 0x00000002;
+          var type;
+          assert(typeof GPUValidationError != 'undefined');
+          assert(typeof GPUOutOfMemoryError != 'undefined');
+          if (ev.error instanceof GPUValidationError) type = Validation;
+          else if (ev.error instanceof GPUOutOfMemoryError) type = OutOfMemory;
+          // TODO: Implement GPUInternalError
+  
+          WebGPU.errorCallback(callback, type, ev.error.message, userdata);
+        });
+      };
+    };
 
   var maybeCStringToJsString = (cString) => {
       // "cString > 2" checks if the input is a number, and isn't of the special
@@ -5924,77 +6382,6 @@ async function createWasm() {
       return WebGPU.mgrSurface.create(context);
     };
 
-  var handleException = (e) => {
-      // Certain exception types we do not treat as errors since they are used for
-      // internal control flow.
-      // 1. ExitStatus, which is thrown by exit()
-      // 2. "unwind", which is thrown by emscripten_unwind_to_js_event_loop() and others
-      //    that wish to return to JS event loop.
-      if (e instanceof ExitStatus || e == 'unwind') {
-        return EXITSTATUS;
-      }
-      checkStackCookie();
-      if (e instanceof WebAssembly.RuntimeError) {
-        if (_emscripten_stack_get_current() <= 0) {
-          err('Stack overflow detected.  You can try increasing -sSTACK_SIZE (currently set to 1000000)');
-        }
-      }
-      quit_(1, e);
-    };
-  
-  
-  var runtimeKeepaliveCounter = 0;
-  var keepRuntimeAlive = () => noExitRuntime || runtimeKeepaliveCounter > 0;
-  var _proc_exit = (code) => {
-      EXITSTATUS = code;
-      if (!keepRuntimeAlive()) {
-        Module['onExit']?.(code);
-        ABORT = true;
-      }
-      quit_(code, new ExitStatus(code));
-    };
-  
-  
-  /** @suppress {duplicate } */
-  /** @param {boolean|number=} implicit */
-  var exitJS = (status, implicit) => {
-      EXITSTATUS = status;
-  
-      checkUnflushedContent();
-  
-      // if exit() was called explicitly, warn the user if the runtime isn't actually being shut down
-      if (keepRuntimeAlive() && !implicit) {
-        var msg = `program exited (with status: ${status}), but keepRuntimeAlive() is set (counter=${runtimeKeepaliveCounter}) due to an async operation, so halting execution but not exiting the runtime or preventing further async execution (you can use emscripten_force_exit, if you want to force a true shutdown)`;
-        readyPromiseReject?.(msg);
-        err(msg);
-      }
-  
-      _proc_exit(status);
-    };
-  var _exit = exitJS;
-  
-  
-  var maybeExit = () => {
-      if (!keepRuntimeAlive()) {
-        try {
-          _exit(EXITSTATUS);
-        } catch (e) {
-          handleException(e);
-        }
-      }
-    };
-  var callUserCallback = (func) => {
-      if (ABORT) {
-        err('user callback triggered after runtime exited or application aborted.  Ignoring.');
-        return;
-      }
-      try {
-        func();
-        maybeExit();
-      } catch (e) {
-        handleException(e);
-      }
-    };
   
   
   var _wgpuInstanceRequestAdapter = (instanceId, options, callback, userdata) => {
@@ -6104,6 +6491,48 @@ async function createWasm() {
 
   var _wgpuShaderModuleRelease = (id) => WebGPU.mgrShaderModule.release(id);
 
+  var _wgpuSurfaceConfigure = (surfaceId, config) => {
+      assert(config);assert(HEAPU32[((config)>>2)] === 0);
+      var deviceId = HEAPU32[(((config)+(4))>>2)];
+      var context = WebGPU.mgrSurface.get(surfaceId);
+  
+      assert(1 ===
+        HEAPU32[(((config)+(36))>>2)]);
+  
+      var canvasSize = [
+        HEAPU32[(((config)+(28))>>2)],
+        HEAPU32[(((config)+(32))>>2)]
+      ];
+  
+      if (canvasSize[0] !== 0) {
+        context["canvas"]["width"] = canvasSize[0];
+      }
+  
+      if (canvasSize[1] !== 0) {
+        context["canvas"]["height"] = canvasSize[1];
+      }
+  
+      var configuration = {
+        "device": WebGPU.mgrDevice.get(deviceId),
+        "format": WebGPU.TextureFormat[
+          HEAPU32[(((config)+(8))>>2)]],
+        "usage": HEAPU32[(((config)+(12))>>2)],
+        "alphaMode": WebGPU.AlphaMode[
+          HEAPU32[(((config)+(24))>>2)]],
+      };
+  
+      var viewFormatCount = HEAPU32[(((config)+(16))>>2)];
+  
+      if (viewFormatCount) {
+        var viewFormats = HEAPU32[(((config)+(20))>>2)];
+        // viewFormats pointer to an array of TextureFormat which is an enum of size uint32_t
+        configuration['viewFormats'] = Array.from(HEAP32.subarray((((viewFormats)>>2)), ((viewFormats + viewFormatCount * 4)>>2)),
+          format => WebGPU.TextureFormat[format]);
+      }
+  
+      context.configure(configuration);
+    };
+
   var _wgpuSurfaceGetCurrentTexture = (surfaceId, surfaceTexturePtr) => {
       assert(surfaceTexturePtr);
       var context = WebGPU.mgrSurface.get(surfaceId);
@@ -6111,20 +6540,15 @@ async function createWasm() {
       try {
         var texture = WebGPU.mgrTexture.create(context.getCurrentTexture());
         HEAPU32[((surfaceTexturePtr)>>2)] = texture;
-        HEAP32[(((surfaceTexturePtr)+(4))>>2)] = 0;checkInt32(0);
-        HEAP32[(((surfaceTexturePtr)+(8))>>2)] = 0;checkInt32(0);
+        HEAP32[(((surfaceTexturePtr)+(4))>>2)] = 0;
+        HEAP32[(((surfaceTexturePtr)+(8))>>2)] = 0;
       } catch (ex) {
         err(`wgpuSurfaceGetCurrentTexture() failed: ${ex}`);
         HEAPU32[((surfaceTexturePtr)>>2)] = 0;
-        HEAP32[(((surfaceTexturePtr)+(4))>>2)] = 0;checkInt32(0);
+        HEAP32[(((surfaceTexturePtr)+(4))>>2)] = 0;
         // TODO(https://github.com/webgpu-native/webgpu-headers/issues/291): What should the status be here?
-        HEAP32[(((surfaceTexturePtr)+(8))>>2)] = 5;checkInt32(5);
+        HEAP32[(((surfaceTexturePtr)+(8))>>2)] = 5;
       }
-    };
-
-  var _wgpuSurfacePresent = (surfaceId) => {
-      // TODO: This could probably be emulated with ASYNCIFY.
-      abort('wgpuSurfacePresent is unsupported (use requestAnimationFrame via html5.h instead)');
     };
 
   var _wgpuSurfaceRelease = (id) => WebGPU.mgrSurface.release(id);
@@ -6317,7 +6741,7 @@ async function createWasm() {
         var bottomOfCallStack = Asyncify.exportCallStack[0];
         assert(bottomOfCallStack, 'exportCallStack is empty');
         var rewindId = Asyncify.getCallStackId(bottomOfCallStack);
-        HEAP32[(((ptr)+(8))>>2)] = rewindId;checkInt32(rewindId);
+        HEAP32[(((ptr)+(8))>>2)] = rewindId;
       },
   getDataRewindFunc(ptr) {
         var id = HEAP32[(((ptr)+(8))>>2)];
@@ -6553,6 +6977,11 @@ async function createWasm() {
   FS.createPreloadedFile = FS_createPreloadedFile;
   FS.preloadFile = FS_preloadFile;
   FS.staticInit();;
+
+      Module['requestAnimationFrame'] = MainLoop.requestAnimationFrame;
+      Module['pauseMainLoop'] = MainLoop.pause;
+      Module['resumeMainLoop'] = MainLoop.resume;
+      MainLoop.init();;
 WebGPU.initManagers();;
 // End JS library code
 
@@ -6618,7 +7047,7 @@ if (Module['wasmBinary']) wasmBinary = Module['wasmBinary'];
   'getTempRet0',
   'setTempRet0',
   'withStackSave',
-  'readEmAsmArgs',
+  'runMainThreadEmAsm',
   'jstoi_q',
   'getExecutableName',
   'autoResumeAudioContext',
@@ -6776,7 +7205,6 @@ missingLibrarySymbols.forEach(missingLibrarySymbol)
   'getHeapMax',
   'growMemory',
   'ENV',
-  'setStackLimits',
   'ERRNO_CODES',
   'strError',
   'inetPton4',
@@ -6791,6 +7219,8 @@ missingLibrarySymbols.forEach(missingLibrarySymbol)
   'timers',
   'warnOnce',
   'readEmAsmArgsArray',
+  'readEmAsmArgs',
+  'runEmAsmFunction',
   'dynCallLegacy',
   'dynCall',
   'handleException',
@@ -7014,8 +7444,52 @@ unexportedSymbols.forEach(unexportedRuntimeSymbol);
 function checkIncomingModuleAPI() {
   ignoredModuleProp('fetchSettings');
 }
+var ASM_CONSTS = {
+  1230712: () => { console.log('Setting up Emscripten main loop from JavaScript'); },  
+ 1230780: () => { console.log('Main loop setup complete'); },  
+ 1230825: () => { console.log('Main function starting (WebAssembly)'); },  
+ 1230882: () => { console.error('Failed to initialize engine: no world created'); },  
+ 1230950: () => { console.log('Demo initialized successfully, setting up main loop'); },  
+ 1231022: () => { console.log('Main function completed, main loop will start asynchronously'); },  
+ 1231103: () => { console.log('WebGPU: Initializing renderer'); },  
+ 1231153: () => { console.log('WebGPU: Instance creation attempted'); },  
+ 1231209: () => { console.log('WebGPU: Failed to create instance'); },  
+ 1231263: () => { console.log('WebGPU: Instance created successfully'); },  
+ 1231321: () => { console.log('WebGPU: Requesting adapter asynchronously...'); },  
+ 1231386: ($0) => { console.log('WebGPU: Adapter callback received, status:', $0); },  
+ 1231453: () => { console.error('WebGPU: Adapter request failed'); },  
+ 1231506: () => { console.log('WebGPU: Adapter acquired successfully, now requesting device...'); },  
+ 1231590: ($0) => { console.log('WebGPU: Device callback received, status:', $0); },  
+ 1231656: () => { console.error('WebGPU: Device request failed'); },  
+ 1231708: () => { console.log('WebGPU: Device and queue acquired successfully - WebGPU pipeline ready!'); },  
+ 1231800: () => { console.log('WebGPU: Surface configured for rendering'); },  
+ 1231861: ($0, $1) => { console.error('WebGPU Error:', UTF8ToString($0), UTF8ToString($1)); console.error('Stopping render loop due to WebGPU error'); },  
+ 1231992: () => { console.log('Main loop: First run starting'); },  
+ 1232042: () => { console.log('Main loop: No world, canceling loop'); },  
+ 1232098: () => { try { Module.ecs_progress_safe = true; } catch(e) { Module.ecs_progress_safe = false; console.error('Pre-progress error:', e); } },  
+ 1232231: ($0) => { console.log('Frame:', $0, 'ECS running normally'); },  
+ 1232286: ($0, $1) => { console.log('ECS progress stopping: continue=', $0, 'success=', $1); },  
+ 1232359: () => { console.log('Flecs world created successfully'); },  
+ 1232412: () => { console.log('WebGPU systems imported successfully'); },  
+ 1232469: () => { console.log('About to create renderer entity'); },  
+ 1232521: () => { console.log('Renderer entity created, adding EcsCanvas'); },  
+ 1232583: () => { console.log('EcsCanvas added, adding WebGPURenderer'); },  
+ 1232642: () => { console.log('WebGPURenderer added, adding WebGPUQuery'); },  
+ 1232703: () => { console.log('Renderer entity created'); },  
+ 1232747: () => { console.log('Attempting manual WebGPU initialization'); },  
+ 1232807: () => { console.log('WebGPU instance created successfully'); },  
+ 1232864: () => { console.log('WebGPU surface created successfully'); },  
+ 1232920: () => { console.log('Failed to create WebGPU surface'); },  
+ 1232972: () => { console.log('Failed to create WebGPU instance'); },  
+ 1233025: () => { console.log('WebGPU: Requesting adapter from manual init...'); },  
+ 1233092: () => { console.log('Demo scene created with 5 entities'); },  
+ 1233147: () => { console.log('Deferred: Setting up main loop'); },  
+ 1233198: () => { console.error('Deferred: No world available for main loop'); },  
+ 1233263: () => { console.log('Deferred: Starting main loop with timeout'); setTimeout(function() { try { Module._setup_emscripten_main_loop(); } catch(e) { console.error('Failed to setup main loop:', e); } }, 100); }
+};
 
 // Imports from the Wasm binary.
+var _setup_emscripten_main_loop = Module['_setup_emscripten_main_loop'] = makeInvalidEarlyAccess('_setup_emscripten_main_loop');
 var _main = Module['_main'] = makeInvalidEarlyAccess('_main');
 var _strerror = makeInvalidEarlyAccess('_strerror');
 var _malloc = makeInvalidEarlyAccess('_malloc');
@@ -7032,14 +7506,13 @@ var _emscripten_stack_get_free = makeInvalidEarlyAccess('_emscripten_stack_get_f
 var __emscripten_stack_restore = makeInvalidEarlyAccess('__emscripten_stack_restore');
 var __emscripten_stack_alloc = makeInvalidEarlyAccess('__emscripten_stack_alloc');
 var _emscripten_stack_get_current = makeInvalidEarlyAccess('_emscripten_stack_get_current');
-var ___set_stack_limits = Module['___set_stack_limits'] = makeInvalidEarlyAccess('___set_stack_limits');
 var dynCall_vi = makeInvalidEarlyAccess('dynCall_vi');
 var dynCall_viii = makeInvalidEarlyAccess('dynCall_viii');
 var dynCall_viiii = makeInvalidEarlyAccess('dynCall_viiii');
+var dynCall_v = makeInvalidEarlyAccess('dynCall_v');
 var dynCall_iiii = makeInvalidEarlyAccess('dynCall_iiii');
 var dynCall_ii = makeInvalidEarlyAccess('dynCall_ii');
 var dynCall_iii = makeInvalidEarlyAccess('dynCall_iii');
-var dynCall_v = makeInvalidEarlyAccess('dynCall_v');
 var dynCall_j = makeInvalidEarlyAccess('dynCall_j');
 var dynCall_ji = makeInvalidEarlyAccess('dynCall_ji');
 var dynCall_i = makeInvalidEarlyAccess('dynCall_i');
@@ -7057,6 +7530,7 @@ var _asyncify_start_rewind = makeInvalidEarlyAccess('_asyncify_start_rewind');
 var _asyncify_stop_rewind = makeInvalidEarlyAccess('_asyncify_stop_rewind');
 
 function assignWasmExports(wasmExports) {
+  Module['_setup_emscripten_main_loop'] = _setup_emscripten_main_loop = createExportWrapper('setup_emscripten_main_loop', 0);
   Module['_main'] = _main = createExportWrapper('main', 2);
   _strerror = createExportWrapper('strerror', 1);
   _malloc = createExportWrapper('malloc', 1);
@@ -7073,14 +7547,13 @@ function assignWasmExports(wasmExports) {
   __emscripten_stack_restore = wasmExports['_emscripten_stack_restore'];
   __emscripten_stack_alloc = wasmExports['_emscripten_stack_alloc'];
   _emscripten_stack_get_current = wasmExports['emscripten_stack_get_current'];
-  Module['___set_stack_limits'] = ___set_stack_limits = createExportWrapper('__set_stack_limits', 2);
   dynCalls['vi'] = dynCall_vi = createExportWrapper('dynCall_vi', 2);
   dynCalls['viii'] = dynCall_viii = createExportWrapper('dynCall_viii', 4);
   dynCalls['viiii'] = dynCall_viiii = createExportWrapper('dynCall_viiii', 5);
+  dynCalls['v'] = dynCall_v = createExportWrapper('dynCall_v', 1);
   dynCalls['iiii'] = dynCall_iiii = createExportWrapper('dynCall_iiii', 4);
   dynCalls['ii'] = dynCall_ii = createExportWrapper('dynCall_ii', 2);
   dynCalls['iii'] = dynCall_iii = createExportWrapper('dynCall_iii', 3);
-  dynCalls['v'] = dynCall_v = createExportWrapper('dynCall_v', 1);
   dynCalls['j'] = dynCall_j = createExportWrapper('dynCall_j', 1);
   dynCalls['ji'] = dynCall_ji = createExportWrapper('dynCall_ji', 2);
   dynCalls['i'] = dynCall_i = createExportWrapper('dynCall_i', 1);
@@ -7100,8 +7573,6 @@ function assignWasmExports(wasmExports) {
 var wasmImports = {
   /** @export */
   __assert_fail: ___assert_fail,
-  /** @export */
-  __handle_stack_overflow: ___handle_stack_overflow,
   /** @export */
   __syscall_accept4: ___syscall_accept4,
   /** @export */
@@ -7127,6 +7598,10 @@ var wasmImports = {
   /** @export */
   clock_time_get: _clock_time_get,
   /** @export */
+  emscripten_asm_const_int: _emscripten_asm_const_int,
+  /** @export */
+  emscripten_cancel_main_loop: _emscripten_cancel_main_loop,
+  /** @export */
   emscripten_date_now: _emscripten_date_now,
   /** @export */
   emscripten_err: _emscripten_err,
@@ -7134,6 +7609,8 @@ var wasmImports = {
   emscripten_get_now: _emscripten_get_now,
   /** @export */
   emscripten_resize_heap: _emscripten_resize_heap,
+  /** @export */
+  emscripten_set_main_loop: _emscripten_set_main_loop,
   /** @export */
   fd_close: _fd_close,
   /** @export */
@@ -7146,6 +7623,8 @@ var wasmImports = {
   getnameinfo: _getnameinfo,
   /** @export */
   wgpuAdapterRelease: _wgpuAdapterRelease,
+  /** @export */
+  wgpuAdapterRequestDevice: _wgpuAdapterRequestDevice,
   /** @export */
   wgpuBindGroupLayoutRelease: _wgpuBindGroupLayoutRelease,
   /** @export */
@@ -7177,7 +7656,11 @@ var wasmImports = {
   /** @export */
   wgpuDeviceCreateShaderModule: _wgpuDeviceCreateShaderModule,
   /** @export */
+  wgpuDeviceGetQueue: _wgpuDeviceGetQueue,
+  /** @export */
   wgpuDeviceRelease: _wgpuDeviceRelease,
+  /** @export */
+  wgpuDeviceSetUncapturedErrorCallback: _wgpuDeviceSetUncapturedErrorCallback,
   /** @export */
   wgpuInstanceCreateSurface: _wgpuInstanceCreateSurface,
   /** @export */
@@ -7205,9 +7688,9 @@ var wasmImports = {
   /** @export */
   wgpuShaderModuleRelease: _wgpuShaderModuleRelease,
   /** @export */
-  wgpuSurfaceGetCurrentTexture: _wgpuSurfaceGetCurrentTexture,
+  wgpuSurfaceConfigure: _wgpuSurfaceConfigure,
   /** @export */
-  wgpuSurfacePresent: _wgpuSurfacePresent,
+  wgpuSurfaceGetCurrentTexture: _wgpuSurfaceGetCurrentTexture,
   /** @export */
   wgpuSurfaceRelease: _wgpuSurfaceRelease,
   /** @export */

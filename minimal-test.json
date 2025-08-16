@@ -1,0 +1,28 @@
+{
+    "id": "flecs_minimal_test",
+    "type": "application",
+    "value": {
+        "author": "Test",
+        "description": "Minimal Flecs test",
+        "use": ["flecs"],
+        "language": "c",
+        "sources": ["minimal-test.c"]
+    },
+    "lang.c": {
+        "${target em}": {
+            "cflags": ["-std=gnu99"],
+            "ldflags": [
+                "-sASYNCIFY=1", 
+                "-sALLOW_MEMORY_GROWTH=1",
+                "-sSTACK_SIZE=1000000",
+                "-sEXPORTED_FUNCTIONS=['_main']",
+                "-sEXPORTED_RUNTIME_METHODS=['ccall','cwrap']",
+                "-sENVIRONMENT=web",
+                "-sINVOKE_RUN=0",
+                "-sASSERTIONS=1",
+                "-sPRINTF_LONG_DOUBLE=0",
+                "-sNO_EXIT_RUNTIME=1"
+            ]
+        }
+    }
+}
