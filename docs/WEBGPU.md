@@ -1,8 +1,37 @@
+# WebGPU Integration
+
+This document describes the WebGPU backend decisions and integration notes.
+
+## Backend selection
+
+- Target Dawn (native) for desktop and emscripten for web builds.
+- Use WebGPU Shading Language (WGSL) for shader sources.
+
+## Emscripten notes
+
+- Emscripten must be configured to expose WebGPU features (emcc flags).
+- Provide modularized JS glue and explicit exported functions for the runtime environment.
+
+## Device and adapter setup
+
+- Request an adapter via `navigator.gpu.requestAdapter()`.
+- Request a device from the adapter and configure the canvas context.
+- Use `navigator.gpu.getPreferredCanvasFormat()` for consistent rendering formats.
+
+## Debugging and profiling
+
+- Use browser DevTools for WebGPU metrics and shader validation.
+- Expose basic performance metrics (FPS, entity count) from the engine for profiling.
+
+## Compatibility
+
+- The code aims to run on modern Chrome/Edge, Firefox Nightly with experimental features, and Safari Technology Preview where available.
+
 # WebGPU Integration Guide
 
 This document details the WebGPU backend integration, covering implementation choices, cross-platform considerations, and web-specific optimizations.
 
-## 🎯 Backend Selection
+## Backend Selection
 
 ### Primary: Dawn WebGPU Implementation
 
@@ -43,7 +72,7 @@ else()
 endif()
 ```
 
-## 🌐 Emscripten Integration
+## Emscripten Integration
 
 ### Compiler Flags
 
@@ -111,7 +140,7 @@ WGPUSurface webgpu_create_surface_from_canvas(WGPUInstance instance, const char*
 }
 ```
 
-## 🔧 Device and Adapter Setup
+## Device and Adapter Setup
 
 ### Adapter Selection Strategy
 
@@ -172,7 +201,7 @@ webgpu_feature_support_t webgpu_query_features(WGPUAdapter adapter) {
 }
 ```
 
-## 📊 Resource Management
+## Resource Management
 
 ### Buffer Management Strategy
 
@@ -245,7 +274,7 @@ void webgpu_load_texture_from_url(const char* url,
 }
 ```
 
-## 🎨 Shader Management
+## Shader Management
 
 ### WGSL Shader Loading
 
@@ -316,7 +345,7 @@ WGPURenderPipeline webgpu_create_render_pipeline(WGPUDevice device,
 }
 ```
 
-## ⚡ Performance Optimizations
+## Performance Optimizations
 
 ### Command Buffer Optimization
 
@@ -399,7 +428,7 @@ WGPUBuffer webgpu_pool_allocate(webgpu_buffer_pool_t* pool,
 }
 ```
 
-## 🔍 Debugging and Profiling
+## Debugging and Profiling
 
 ### Browser Integration
 

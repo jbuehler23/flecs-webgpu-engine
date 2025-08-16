@@ -105,7 +105,7 @@ typedef struct {
 } WebGPUMaterial;
 ```
 
-## 🔄 System Flow
+## System Flow
 
 ### Frame Rendering Pipeline
 
@@ -116,7 +116,7 @@ sequenceDiagram
     participant G as Geometry Manager
     participant Q as Query System
     participant GPU as WebGPU Device
-    
+
     F->>R: world.progress()
     R->>Q: Query renderable entities
     Q->>Q: Gather Position3, Geometry, Material

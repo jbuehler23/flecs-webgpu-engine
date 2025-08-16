@@ -4,245 +4,115 @@ This document outlines the implementation phases and milestones for the Flecs We
 
 ## Project Objectives
 
-**Primary Goal**: Develop a production-ready web-native rendering engine that integrates seamlessly with the Flecs ECS ecosystem.
+Primary goal: deliver a production-grade web-native rendering engine that integrates with the Flecs ECS ecosystem.
 
-**Success Criteria**:
-- API complexity equivalent to existing Sokol system
-- Performance matches or exceeds Sokol implementation in browsers  
-- Sub-1MB WebAssembly binary size for basic scenes
-- 60fps rendering of 10k+ entities in modern browsers
-- Cold start time under 100ms in web browsers
-- Full compatibility with existing Flecs Hub components
+Success criteria:
+- API complexity similar to the Sokol-based system
+- Competitive runtime performance in browsers
+- Small WebAssembly binary for basic scenes
+- Smooth rendering on modern hardware at typical scene sizes
+- Compatibility with existing Flecs Hub components
 
 ## Implementation Phases
 
-### Phase 1: Foundation (Weeks 1-2)
-**Status**: In Progress
+### Phase 1: Foundation
+Status: In progress
 
-**Completed:**
-- Sokol architecture analysis and pattern identification
-- WebGPU backend evaluation (Dawn vs wgpu-native)
-- System architecture design and documentation
-- Core component definitions and interfaces
+Completed:
+- Architecture design and research
+- WebGPU backend evaluation and decisions
+- Project structure and core component definitions
 
-**Current Work:**
-- Basic WebGPU device initialization and error handling
+Current work:
+- WebGPU device initialization and error handling
 - Canvas surface creation and management
-- Core renderer component implementation
-- Simple triangle rendering proof of concept
+- Minimal renderer and shader proof-of-concept
 
-**Upcoming:**
-- Build system integration and cross-platform configuration
-- Error handling and debugging infrastructure
+Upcoming:
+- Build system integration for native and web targets
+- Basic error handling and developer diagnostics
 
-**Phase 1 Deliverables:**
-- Minimal WebGPU renderer displaying basic geometry
-- Build system supporting web and native targets
-- Component structure compatible with existing Flecs patterns
+Deliverables:
+- Minimal WebGPU renderer displaying simple geometry
+- Cross-platform build configuration
+- Component interfaces compatible with Flecs
 
-### Phase 2: Core Rendering (Weeks 3-5)
-**Status**: Pending
+### Phase 2: Core Rendering
+Status: planned
 
-**Geometry System:**
-- Vertex/index buffer management and efficient uploads
-- Basic primitive generation (Box, Rectangle, Sphere)
-- Automatic instancing for identical geometry types
-- Transform matrix computation from Flecs components
+Goals:
+- Vertex/index buffer management and uploads
+- Primitive generation (Box, Rectangle, Sphere)
+- Automatic instancing for identical geometry
+- Transform matrix extraction from Flecs components
+- Basic material and uniform handling
+- Texture loading and sampling
+- Query-driven entity discovery and efficient updates
 
-**Material System:**
-- Material component structure and property management
-- Uniform buffer management for GPU data
-- Texture loading, binding, and sampling
-- Lighting model implementation (Phong/PBR)
+Deliverables:
+- Primitive rendering with instancing
+- Integration with Flecs component lifecycle
 
-**Flecs Integration:**
-- Query system optimization for renderable entity discovery
-- Component change detection for efficient GPU updates
-- Memory management with proper ECS lifecycle integration
-- System registration and execution order management
+### Phase 3: Advanced Features
+Status: planned
 
-**Phase 2 Deliverables:**
-- Basic geometric primitive rendering with materials
-- Automatic entity batching by geometry type
-- Full integration with Flecs Hub component ecosystem
+Goals:
+- PBR material workflow and lighting support
+- Shadow mapping and multi-pass rendering
+- HDR and tone mapping
+- Depth buffer and anti-aliasing options
+- Performance-oriented GPU resource management and streaming
 
-### Phase 3: Advanced Features (Weeks 6-8)
-**Status**: Pending
-
-#### Lighting & Shading
-- [ ] PBR (Physically Based Rendering) material workflow
-- [ ] Directional light support (sun/moon simulation)
-- [ ] Point light support with distance falloff
-- [ ] Ambient lighting and environment mapping
-
-#### Rendering Pipeline
-- [ ] Depth buffer and Z-testing
-- [ ] Multi-pass rendering (shadow mapping)
-- [ ] HDR rendering with tone mapping
-- [ ] MSAA anti-aliasing support
-
-#### Resource Management
-- [ ] Texture atlasing for small textures
-- [ ] GPU memory pool management
-- [ ] Async resource loading for web deployment
-- [ ] Resource streaming and level-of-detail
-
-**Deliverables**:
-- PBR material rendering with realistic lighting
-- Shadow mapping for directional lights
+Deliverables:
+- Realistic lighting and material support
 - Efficient resource management for web deployment
 
----
+### Phase 4: Web Optimization
+Status: planned
 
-### **Phase 4: Web Optimization (Weeks 9-10)**
-**Status**: ⏳ Pending
+Goals:
+- Binary size reduction and startup time improvements
+- Responsive canvas support and high-DPI handling
+- Progressive loading for assets and shaders
+- Developer tooling: hot reload for shaders, profiling hooks
 
-#### WebAssembly Optimization
-- [ ] Bundle size optimization (<1MB target)
-- [ ] Startup time optimization (<100ms target)
-- [ ] Memory usage optimization
-- [ ] Code splitting for optional features
+Deliverables:
+- Optimized WebAssembly artifacts and deployment guidance
 
-#### Browser Integration
-- [ ] Canvas resize handling for responsive design
-- [ ] Device pixel ratio support for high-DPI displays
-- [ ] Browser performance API integration
-- [ ] Progressive loading of assets
+### Phase 5: Polish & Documentation
+Status: planned
 
-#### Developer Experience
-- [ ] Browser developer tools integration
-- [ ] Performance profiling and metrics
-- [ ] Hot reload for shader development
-- [ ] Debug visualization modes
+Goals:
+- Performance tuning and profiling
+- API review and simplification
+- Comprehensive documentation and examples
+- CI and testing for cross-platform stability
 
-**Deliverables**:
-- Optimized WebAssembly build meeting size/performance targets
-- Seamless browser integration with responsive canvas
-- Developer-friendly debugging and profiling tools
+Deliverables:
+- Production-ready code, docs, and examples
 
----
+## Milestones
 
-### **Phase 5: Polish & Documentation (Weeks 11-12)**
-**Status**: ⏳ Pending
+- Milestone 1: Basic WebGPU integration and "hello triangle"
+- Milestone 2: Basic primitives, instancing, and Flecs integration
+- Milestone 3: Lighting, shadows, and texture support
+- Milestone 4: Web optimizations and developer tooling
+- Milestone 5: Final polish and community release
 
-#### Performance Tuning
-- [ ] CPU/GPU profiling and optimization
-- [ ] Batch rendering optimization
-- [ ] Frustum culling implementation
-- [ ] Draw call minimization
+## Iteration Strategy
 
-#### API Refinement
-- [ ] Final API review and simplification
-- [ ] Component interface standardization
-- [ ] Error handling consistency
-- [ ] Memory leak prevention
+Weekly cadence recommended:
+- Monday: plan and prioritize
+- Wednesday: mid-week review
+- Friday: demo and review
 
-#### Documentation & Examples
-- [ ] Comprehensive API documentation
-- [ ] Getting started tutorial
-- [ ] Advanced usage examples
-- [ ] Migration guide from Sokol
+Feedback channels:
+- Community input through Flecs Discord and issue tracker
+- Regular cross-platform testing on Chrome, Firefox, and Safari
 
-#### Community Preparation
-- [ ] Open source repository setup
-- [ ] Contribution guidelines
-- [ ] Issue templates and workflows
-- [ ] Automated testing and CI/CD
+## Progress (short)
 
-**Deliverables**:
-- Production-ready WebGPU rendering system
-- Complete documentation and examples
-- Community-ready open source project
-
----
-
-## 🎯 Milestone Targets
-
-### Milestone 1: "Hello Triangle" (End of Week 2)
-- ✅ WebGPU device initialization
-- ✅ Canvas surface creation
-- ✅ Basic shader compilation (WGSL)
-- ✅ Single triangle rendering
-- ✅ Cross-platform build system
-
-### Milestone 2: "Basic Shapes" (End of Week 5)
-- ✅ Box and Rectangle primitive rendering
-- ✅ Transform matrix integration with Flecs
-- ✅ Automatic instancing working
-- ✅ Basic material colors
-- ✅ Query-driven entity gathering
-
-### Milestone 3: "Realistic Rendering" (End of Week 8)
-- ✅ PBR material workflow
-- ✅ Directional and point lighting
-- ✅ Shadow mapping implementation
-- ✅ HDR rendering pipeline
-- ✅ Texture loading and management
-
-### Milestone 4: "Web Ready" (End of Week 10)
-- ✅ <1MB WebAssembly binary
-- ✅ <100ms cold start time
-- ✅ 60fps with 10k+ entities
-- ✅ Responsive canvas integration
-- ✅ Browser debugging tools
-
-### Milestone 5: "Production Ready" (End of Week 12)
-- ✅ Complete API documentation
-- ✅ Performance benchmarks vs Sokol
-- ✅ Migration tools and guides
-- ✅ Community repository ready
-- ✅ Automated testing pipeline
-
----
-
-## 🔄 Iteration Strategy
-
-### Weekly Review Cycle
-1. **Monday**: Sprint planning and task prioritization
-2. **Wednesday**: Mid-week progress review and blockers
-3. **Friday**: Weekly demo and feedback incorporation
-4. **Weekend**: Documentation updates and next week preparation
-
-### Feedback Integration
-- **Community Input**: Regular updates to Flecs Discord for feedback
-- **Performance Benchmarks**: Continuous performance comparison with Sokol
-- **Cross-Platform Testing**: Regular validation on multiple browsers/platforms
-- **User Testing**: Early preview releases for community validation
-
-### Risk Mitigation
-- **WebGPU Spec Changes**: Monitor WebGPU working group for breaking changes
-- **Browser Support**: Test across Chrome, Firefox, Safari for compatibility
-- **Performance Targets**: Regular benchmarking to ensure targets are achievable
-- **Scope Creep**: Strict adherence to defined milestones and success criteria
-
----
-
-## 📊 Progress Tracking
-
-### Current Status: Phase 1 (Foundation)
-**Progress**: 60% Complete
-
-**Completed**:
-- ✅ Architecture design and documentation
-- ✅ Research and analysis phase
-- ✅ Project structure setup
-- ✅ WebGPU backend selection
-
-**In Progress**:
-- 🚧 Basic WebGPU renderer prototype
-- 🚧 Build system configuration
-
-**Next Up**:
-- ⏳ Triangle rendering proof of concept
-- ⏳ Flecs component integration
-- ⏳ Cross-platform build testing
-
-### Upcoming Phases Preview
-
-**Phase 2 Focus**: Core rendering functionality with basic geometric primitives
-**Phase 3 Focus**: Advanced graphics features and realistic rendering
-**Phase 4 Focus**: Web-specific optimizations and browser integration  
-**Phase 5 Focus**: Polish, documentation, and community preparation
+Current focus: foundation and basic renderer. Next: integrate with Flecs components and stabilize the build for web and native targets.
 
 ---
 

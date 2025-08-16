@@ -29,10 +29,10 @@ class FlecsWebGPUDemo {
             await this.initializeEngine();
             this.setupEventHandlers();
             this.startRenderLoop();
-            this.updateStatus('ready', '✅ Engine ready! Click buttons to add 3D objects.');
+            this.updateStatus('ready', 'Engine ready. Click buttons to add objects.');
         } catch (error) {
             console.error('Demo initialization failed:', error);
-            this.updateStatus('error', `❌ Failed to initialize: ${error.message}`);
+            this.updateStatus('error', `Failed to initialize: ${error.message}`);
         }
     }
     
@@ -63,7 +63,7 @@ class FlecsWebGPUDemo {
             format: canvasFormat,
         });
         
-        webgpuInfo.textContent = `✅ Adapter: ${adapter.info?.vendor || 'Available'}, Format: ${canvasFormat}`;
+        webgpuInfo.textContent = `Adapter: ${adapter.info?.vendor || 'Available'}, Format: ${canvasFormat}`;
         
         // Store WebGPU objects for engine
         this.adapter = adapter;

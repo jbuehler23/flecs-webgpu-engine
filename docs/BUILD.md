@@ -132,7 +132,7 @@ bake clean webgpu_demo
 bake build webgpu_demo --cfg debug --target em
 ```
 
-## 🌐 CMake Configuration
+## CMake Configuration
 
 ### Root CMakeLists.txt
 
@@ -217,7 +217,7 @@ cmake .. -DWEBGPU_BACKEND=WGPU
 make -j$(nproc)
 ```
 
-## 📦 Dependency Management
+## Dependency Management
 
 ### Native Dependencies
 
@@ -260,7 +260,7 @@ source ./emsdk_env.sh
 emcc --show-ports | grep webgpu
 ```
 
-## 🚀 Development Workflow
+## Development Workflow
 
 ### Local Development Server
 
@@ -299,7 +299,7 @@ const features = Array.from(adapter.features);
 console.log('Supported features:', features);
 ```
 
-## 🔧 Configuration Options
+## Configuration Options
 
 ### Compile-Time Features
 
@@ -354,7 +354,7 @@ webgpu_config_t webgpu_detect_optimal_config(void) {
 }
 ```
 
-## 📊 Build Optimization
+## Build Optimization
 
 ### Size Optimization (Web Builds)
 
@@ -384,3 +384,39 @@ webgpu_config_t webgpu_detect_optimal_config(void) {
 ```
 
 This build system provides flexible cross-platform support while optimizing for each target's specific requirements and capabilities.
+
+# Build Instructions
+
+This document explains how to build the Flecs WebGPU engine for native and web targets.
+
+Prerequisites
+- CMake 3.16+ (or Bake build system)
+- Emscripten SDK for WebAssembly builds
+- A C compiler for native targets (gcc/clang)
+
+Native build (Dawn/wgpu-native)
+1. Create a build directory:
+   ```bash
+   mkdir build && cd build
+   cmake ..
+   cmake --build . --config Release
+   ```
+2. Run unit tests (if available):
+   ```bash
+   ctest
+   ```
+
+Web build (Emscripten)
+1. Activate Emscripten environment:
+   ```bash
+   source /path/to/emsdk/emsdk_env.sh
+   ```
+2. Use the provided build script to generate WebAssembly artifacts:
+   ```bash
+   ./build-web.sh
+   ```
+
+Notes
+- The build scripts expect the repo to be at the root of your workspace.
+- For web builds, tweak emcc flags to control binary size and features.
+- Use the `web-demo/serve.py` script for local testing.

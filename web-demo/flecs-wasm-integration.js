@@ -13,29 +13,29 @@ class FlecsWasmEngine {
 
     async initialize(canvasId) {
         try {
-            console.log('🔄 Loading Flecs WebGPU WebAssembly module...');
-            
-            // Load the WebAssembly module
-            await this.loadWasmModule();
-            
-            // Initialize the Flecs world
-            this.initializeFlecsWorld();
-            
-            // Setup canvas for WebGPU
-            this.canvas = document.getElementById(canvasId);
-            await this.setupWebGPUCanvas();
-            
-            // Import the WebGPU systems
-            this.importWebGPUSystems();
-            
-            this.isInitialized = true;
-            console.log('✅ Flecs WebGPU engine initialized successfully');
-            
-        } catch (error) {
-            console.error('❌ Failed to initialize Flecs WebGPU engine:', error);
-            throw error;
-        }
-    }
+            console.log('Loading Flecs WebGPU WebAssembly module...');
+             
+             // Load the WebAssembly module
+             await this.loadWasmModule();
+             
+             // Initialize the Flecs world
+             this.initializeFlecsWorld();
+             
+             // Setup canvas for WebGPU
+             this.canvas = document.getElementById(canvasId);
+             await this.setupWebGPUCanvas();
+             
+             // Import the WebGPU systems
+             this.importWebGPUSystems();
+             
+             this.isInitialized = true;
+            console.log('Flecs WebGPU engine initialized');
+             
+         } catch (error) {
+            console.error('Failed to initialize Flecs WebGPU engine:', error);
+             throw error;
+         }
+     }
 
     async loadWasmModule() {
         // For now, we'll create a mock interface to the actual WebAssembly
@@ -59,15 +59,15 @@ class FlecsWasmEngine {
             wasmBinary: '../bin/Em-debug/libflecs_systems_webgpu.so'
         };
         
-        console.log('📦 WebAssembly module loaded (simulated)');
-        console.log('💡 Real implementation would load:', this.wasmModule.wasmBinary);
+        console.log('WebAssembly module loaded (simulated)');
+        console.log('Real implementation would load:', this.wasmModule.wasmBinary);
     }
 
-    initializeFlecsWorld() {
-        // Create a Flecs world using the WebAssembly functions
-        this.world = this.wasmModule.ecs_init();
-        console.log('🌍 Flecs world created with ID:', this.world);
-    }
+     initializeFlecsWorld() {
+         // Create a Flecs world using the WebAssembly functions
+         this.world = this.wasmModule.ecs_init();
+        console.log('Flecs world created with ID:', this.world);
+     }
 
     async setupWebGPUCanvas() {
         if (!this.canvas) {
@@ -97,16 +97,16 @@ class FlecsWasmEngine {
             format: canvasFormat,
         });
 
-        console.log('🎨 WebGPU canvas configured');
+        console.log('WebGPU canvas configured');
     }
 
-    importWebGPUSystems() {
-        // Import the WebGPU systems into the Flecs world
-        this.wasmModule.FlecsSystemsWebGPUImport(this.world);
-        console.log('🔧 WebGPU systems imported into Flecs world');
-    }
+     importWebGPUSystems() {
+         // Import the WebGPU systems into the Flecs world
+         this.wasmModule.FlecsSystemsWebGPUImport(this.world);
+        console.log('WebGPU systems imported into Flecs world');
+     }
 
-    createEntity(components = {}) {
+     createEntity(components = {}) {
         if (!this.isInitialized) {
             throw new Error('Engine not initialized');
         }
@@ -114,18 +114,18 @@ class FlecsWasmEngine {
         // In the real implementation, this would call Flecs entity creation
         const entityId = Math.floor(Math.random() * 1000000);
         
-        console.log('🎯 Created entity:', entityId, 'with components:', components);
-        return entityId;
-    }
+        console.log('Created entity:', entityId, 'with components:', components);
+         return entityId;
+     }
 
-    addComponent(entity, componentType, data) {
+     addComponent(entity, componentType, data) {
         if (!this.isInitialized) {
             throw new Error('Engine not initialized');
         }
 
         // In the real implementation, this would call Flecs component addition
-        console.log('🔗 Added component:', componentType, 'to entity:', entity, 'with data:', data);
-    }
+        console.log('Added component:', componentType, 'to entity:', entity, 'with data:', data);
+     }
 
     step(deltaTime = 1/60) {
         if (!this.isInitialized) {
@@ -142,7 +142,7 @@ class FlecsWasmEngine {
             this.world = null;
         }
         this.isInitialized = false;
-        console.log('🛑 Flecs world destroyed');
+        console.log('Flecs world destroyed');
     }
 }
 

@@ -1,20 +1,20 @@
 #!/bin/bash
 
-echo "🔨 Building Flecs WebGPU Engine for Web Deployment"
+echo "Building Flecs WebGPU Engine for Web Deployment"
 echo "=================================================="
 
 # Activate Emscripten environment
-echo "🔄 Activating Emscripten environment..."
+echo "Activating Emscripten environment..."
 source /Users/Joe/Dev/flecs-dev/emsdk/emsdk_env.sh
 
 # Clean previous builds
-echo "🧹 Cleaning previous builds..."
+echo "Cleaning previous builds..."
 rm -rf .bake_cache
 rm -rf bin/Em-debug/
 rm -rf web-demo/wasm/
 
 # Build the WebAssembly application with proper exports
-echo "⚙️  Building WebAssembly application..."
+echo "Building WebAssembly application..."
 
 # Create output directory
 mkdir -p web-demo/wasm
@@ -52,7 +52,7 @@ emcc \
     -o web-demo/wasm/flecs-webgpu.js
 
 if [ $? -ne 0 ]; then
-    echo "❌ Build failed!"
+    echo "Build failed"
     exit 1
 fi
 
@@ -61,16 +61,16 @@ WASM_FILE="web-demo/wasm/flecs-webgpu.wasm"
 JS_FILE="web-demo/wasm/flecs-webgpu.js"
 
 if [ ! -f "$WASM_FILE" ] || [ ! -f "$JS_FILE" ]; then
-    echo "❌ WebAssembly files not found"
+    echo "WebAssembly files not found"
     exit 1
 fi
 
-echo "✅ WebAssembly build completed successfully!"
-echo "📦 WASM Output: $WASM_FILE ($(du -h "$WASM_FILE" | cut -f1))"
-echo "📦 JS Output: $JS_FILE ($(du -h "$JS_FILE" | cut -f1))"
+echo "WebAssembly build completed successfully"
+echo "WASM Output: $WASM_FILE ($(du -h "$WASM_FILE" | cut -f1))"
+echo "JS Output: $JS_FILE ($(du -h "$JS_FILE" | cut -f1))"
 echo ""
-echo "🚀 To run the demo:"
+echo "To run the demo:"
 echo "   cd web-demo"
 echo "   ./run-demo.sh"
 echo ""
-echo "🎯 Demo URL: http://localhost:8080"
+echo "Demo URL: http://localhost:8080"

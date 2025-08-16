@@ -27,6 +27,7 @@ class CORSRequestHandler(http.server.SimpleHTTPRequestHandler):
         self.send_response(200)
         self.end_headers()
 
+
 def main():
     PORT = 8080
     
@@ -34,24 +35,24 @@ def main():
     demo_dir = Path(__file__).parent
     os.chdir(demo_dir)
     
-    print(f"🚀 Starting Flecs WebGPU demo server...")
-    print(f"📂 Serving files from: {demo_dir}")
-    print(f"🌐 Demo URL: http://localhost:{PORT}")
-    print(f"🛑 Press Ctrl+C to stop")
+    print("Starting Flecs WebGPU demo server")
+    print(f"Serving files from: {demo_dir}")
+    print(f"Demo URL: http://localhost:{PORT}")
+    print("Press Ctrl+C to stop")
     print()
     
     try:
         with socketserver.TCPServer(("", PORT), CORSRequestHandler) as httpd:
-            print(f"✅ Server running on port {PORT}")
+            print(f"Server running on port {PORT}")
             httpd.serve_forever()
     except KeyboardInterrupt:
-        print("\n🛑 Server stopped")
+        print("\nServer stopped")
     except OSError as e:
         if e.errno == 48:  # Address already in use
-            print(f"❌ Error: Port {PORT} is already in use")
-            print(f"   Try: lsof -ti:{PORT} | xargs kill")
+            print(f"Error: Port {PORT} is already in use")
+            print(f"  Try: lsof -ti:{PORT} | xargs kill")
         else:
-            print(f"❌ Error starting server: {e}")
+            print(f"Error starting server: {e}")
         sys.exit(1)
 
 if __name__ == "__main__":

@@ -39,8 +39,8 @@
     </style>
   </head>
   <body>  
-    <h1>🎮 Flecs WebGPU Engine - Native Demo</h1>
-    
+    <h1>Flecs WebGPU Engine - Native Demo</h1>
+     
     <div class="info">
       [ <a style="color: #A2D8B4;" 
         href="https://github.com/your-repo/flecs-webgpu-engine" 
@@ -55,18 +55,18 @@
     </div>
 
     <div id="status" class="status loading">
-      🔄 Loading Flecs WebGPU Engine...
+      Loading Flecs WebGPU Engine...
     </div>
 
     <!-- Create the canvas that the Flecs engine will draw into -->
     <canvas id="canvas"></canvas>
 
     <div class="info">
-      <p><strong>🎯 This is the actual Flecs WebGPU engine compiled to WebAssembly!</strong></p>
-      <p>• Uses real Flecs ECS with all components and systems</p>
-      <p>• Native WebGPU rendering with WGSL shaders</p>
-      <p>• Component-based entity management</p>
-      <p>• Automatic GPU batching and optimization</p>
+      <p><strong>This is the Flecs WebGPU engine compiled to WebAssembly.</strong></p>
+      <p>- Uses Flecs ECS with components and systems</p>
+      <p>- WebGPU rendering with WGSL shaders</p>
+      <p>- Component-based entity management</p>
+      <p>- Automatic GPU batching and optimization</p>
     </div>
 
     <script src="wasm/flecs_webgpu_demo.js"></script>
@@ -81,7 +81,7 @@
 
       async function initEngine() {
         try {
-          updateStatus('loading', '🔄 Initializing WebGPU...');
+          updateStatus('loading', 'Initializing WebGPU...');
           
           // Check WebGPU support
           if (!navigator.gpu) {
@@ -93,12 +93,12 @@
             throw new Error('No WebGPU adapter found');
           }
 
-          updateStatus('loading', '🔄 Loading Flecs WebAssembly module...');
+          updateStatus('loading', 'Loading Flecs WebAssembly module...');
           
           // Load the Flecs WebGPU module
           const flecsModule = await flecs_webgpu_demo();
           
-          updateStatus('ready', '✅ Flecs WebGPU Engine loaded successfully!');
+          updateStatus('ready', 'Flecs WebGPU Engine loaded successfully');
           
           console.log('Flecs WebGPU Engine module loaded:', flecsModule);
           console.log('Available functions:', Object.keys(flecsModule).filter(k => typeof flecsModule[k] === 'function'));
@@ -110,7 +110,7 @@
           
         } catch (error) {
           console.error('Failed to initialize engine:', error);
-          updateStatus('error', `❌ Failed to initialize: ${error.message}`);
+          updateStatus('error', `Failed to initialize: ${error.message}`);
         }
       }
 

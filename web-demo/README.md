@@ -1,31 +1,31 @@
-# 🎮 Flecs WebGPU Engine - Web Demo
+# Flecs WebGPU Engine - Web Demo
 
 This demo showcases the Flecs WebGPU rendering engine running in a web browser using native WebGPU APIs.
 
-## 🚀 Quick Start
+## Quick Start
 
-1. **Start the local server:**
+1. Start the local server:
    ```bash
    cd web-demo
    python3 serve.py
    ```
 
-2. **Open in your browser:**
+2. Open in your browser:
    Navigate to: http://localhost:8080
 
-3. **Interact with the demo:**
+3. Interact with the demo:
    - Click "Add Box" to create new 3D cubes
    - Use "Rotate Left/Right" to orbit the camera
    - "Zoom In/Out" to adjust camera distance
    - "Random Colors" to change object colors
    - "Clear Scene" to remove all objects
 
-## 🔧 Requirements
+## Requirements
 
 ### Browser Support
-- **Chrome/Edge 94+** with WebGPU enabled
-- **Firefox Nightly** with WebGPU experimental features
-- **Safari Technology Preview** (experimental)
+- Chrome/Edge 94+ with WebGPU enabled
+- Firefox Nightly with WebGPU experimental features
+- Safari Technology Preview (experimental)
 
 ### Enable WebGPU in Chrome:
 1. Go to `chrome://flags`
@@ -33,17 +33,17 @@ This demo showcases the Flecs WebGPU rendering engine running in a web browser u
 3. Enable "Unsafe WebGPU"
 4. Restart Chrome
 
-## 🏗️ Architecture
+## Architecture
 
 This demo demonstrates:
 
-- **WebAssembly Integration**: Flecs engine compiled to WASM
-- **ECS Architecture**: Entity Component System with automatic batching
-- **WebGPU Rendering**: Native browser 3D graphics acceleration
-- **Component Queries**: Automatic discovery of renderable entities
-- **Instanced Rendering**: Efficient GPU batching for multiple objects
+- WebAssembly integration: Flecs engine compiled to WASM
+- ECS architecture: Entity Component System with automatic batching
+- WebGPU rendering: Native browser 3D graphics acceleration
+- Component queries: Automatic discovery of renderable entities
+- Instanced rendering: Efficient GPU batching for multiple objects
 
-## 🎯 Demo Features
+## Demo Features
 
 ### Scene Management
 - Dynamic entity creation (boxes, rectangles)
@@ -63,14 +63,14 @@ This demo demonstrates:
 - Triangle count display
 - GPU memory usage (in WebGPU DevTools)
 
-## 📊 Performance
+## Performance
 
 Expected performance on modern hardware:
-- **1000+ entities**: 60 FPS
-- **GPU Memory**: <50MB for typical scenes
-- **CPU Usage**: <10% on dedicated thread
+- 1000+ entities: 60 FPS
+- GPU Memory: <50MB for typical scenes
+- CPU Usage: <10% on dedicated thread
 
-## 🔍 Development
+## Development
 
 ### File Structure
 ```
@@ -82,13 +82,13 @@ web-demo/
 ```
 
 ### Key Components
-- **FlecsWebGPUDemo**: Main demo class
-- **Entity Management**: Add/remove 3D objects
-- **Camera System**: Orbit controls and projection
-- **Render Pipeline**: WebGPU shader setup
-- **Performance Tracking**: FPS and metrics
+- FlecsWebGPUDemo: Main demo class
+- Entity Management: Add/remove 3D objects
+- Camera System: Orbit controls and projection
+- Render Pipeline: WebGPU shader setup
+- Performance Tracking: FPS and metrics
 
-## 🐛 Troubleshooting
+## Troubleshooting
 
 ### WebGPU Not Available
 - Check browser compatibility
@@ -105,24 +105,24 @@ web-demo/
 - CORS errors: Use the provided Python server
 - File access: Ensure proper file permissions
 
-## 🎮 Example Game Ideas
+## Example Game Ideas
 
 This engine foundation supports:
 
-- **Tower Defense**: Grid-based entity placement
-- **Space Shooter**: Fast-moving projectile entities  
-- **RTS Games**: Large numbers of unit entities
-- **Puzzle Games**: Interactive 3D object manipulation
-- **Simulation**: Physics-based entity systems
+- Tower Defense: Grid-based entity placement
+- Space Shooter: Fast-moving projectile entities
+- RTS Games: Large numbers of unit entities
+- Puzzle Games: Interactive 3D object manipulation
+- Simulation: Physics-based entity systems
 
-## 🔗 Next Steps
+## Next Steps
 
-1. **Integrate Real WebAssembly**: Load actual Flecs WASM module
-2. **Add Physics**: Integrate with physics engine
-3. **Texture Support**: Material and texture systems
-4. **Audio Integration**: 3D spatial audio
-5. **Networking**: Multiplayer entity synchronization
+1. Integrate real WebAssembly: load actual Flecs WASM module
+2. Add physics: integrate with physics engine
+3. Texture support: material and texture systems
+4. Audio integration: 3D spatial audio
+5. Networking: multiplayer entity synchronization
 
 ---
 
-**🎯 Goal Achieved**: Web-native 3D rendering engine with ECS architecture, compiled to WebAssembly, running at 60 FPS in modern browsers!
+Goal: web-native 3D rendering engine with ECS architecture, compiled to WebAssembly, running at 60 FPS in modern browsers.
