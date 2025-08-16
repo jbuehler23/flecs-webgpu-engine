@@ -1,0 +1,121 @@
+<html>
+  <head>
+    <title>Flecs WebGPU Engine - Native Demo</title>
+    <!-- <link rel="icon" href="img/flecs_logo.png" /> -->
+    <style>
+      body {
+        background-color: #101115;
+        color: #DDE0E6;
+        margin: 0;
+        padding: 20px;
+        font-family: Arial, Helvetica, sans-serif;
+      }
+      canvas {
+        width: 1024px;
+        height: 600px;
+        border: 1px solid #333;
+        background-color: #000;
+      }
+      .info {
+        margin-bottom: 10px;
+      }
+      .status {
+        padding: 10px;
+        margin: 10px 0;
+        border-radius: 4px;
+      }
+      .status.loading {
+        background-color: #333;
+        color: #FFF;
+      }
+      .status.ready {
+        background-color: #2d5a27;
+        color: #90EE90;
+      }
+      .status.error {
+        background-color: #5a2727;
+        color: #FFB6C1;
+      }
+    </style>
+  </head>
+  <body>  
+    <h1>🎮 Flecs WebGPU Engine - Native Demo</h1>
+    
+    <div class="info">
+      [ <a style="color: #A2D8B4;" 
+        href="https://github.com/your-repo/flecs-webgpu-engine" 
+        target="_blank">
+        Source
+      </a> ]
+      [ <a style="color: #A2D8B4;" 
+        href="https://www.flecs.dev/explorer/?host=http://localhost:8080/wasm/flecs_webgpu_demo.wasm" 
+        target="_blank">
+        Open in Explorer
+      </a> ]
+    </div>
+
+    <div id="status" class="status loading">
+      🔄 Loading Flecs WebGPU Engine...
+    </div>
+
+    <!-- Create the canvas that the Flecs engine will draw into -->
+    <canvas id="canvas"></canvas>
+
+    <div class="info">
+      <p><strong>🎯 This is the actual Flecs WebGPU engine compiled to WebAssembly!</strong></p>
+      <p>• Uses real Flecs ECS with all components and systems</p>
+      <p>• Native WebGPU rendering with WGSL shaders</p>
+      <p>• Component-based entity management</p>
+      <p>• Automatic GPU batching and optimization</p>
+    </div>
+
+    <script src="wasm/flecs_webgpu_demo.js"></script>
+
+    <script type='text/javascript'>
+      const statusEl = document.getElementById('status');
+      
+      function updateStatus(type, message) {
+        statusEl.className = `status ${type}`;
+        statusEl.innerHTML = message;
+      }
+
+      async function initEngine() {
+        try {
+          updateStatus('loading', '🔄 Initializing WebGPU...');
+          
+          // Check WebGPU support
+          if (!navigator.gpu) {
+            throw new Error('WebGPU not supported in this browser');
+          }
+
+          const adapter = await navigator.gpu.requestAdapter();
+          if (!adapter) {
+            throw new Error('No WebGPU adapter found');
+          }
+
+          updateStatus('loading', '🔄 Loading Flecs WebAssembly module...');
+          
+          // Load the Flecs WebGPU module
+          const flecsModule = await flecs_webgpu_demo();
+          
+          updateStatus('ready', '✅ Flecs WebGPU Engine loaded successfully!');
+          
+          console.log('Flecs WebGPU Engine module loaded:', flecsModule);
+          console.log('Available functions:', Object.keys(flecsModule).filter(k => typeof flecsModule[k] === 'function'));
+          
+          // Call main() manually to initialize the Flecs world with demo entities
+          console.log('Calling main() to initialize demo...');
+          const result = flecsModule.ccall('main', 'number', [], []);
+          console.log('main() returned:', result);
+          
+        } catch (error) {
+          console.error('Failed to initialize engine:', error);
+          updateStatus('error', `❌ Failed to initialize: ${error.message}`);
+        }
+      }
+
+      // Initialize when the page loads
+      initEngine();
+    </script>
+  </body>
+</html>

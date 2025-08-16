@@ -30,6 +30,10 @@
                 "-sASYNCIFY=1", 
                 "-sALLOW_MEMORY_GROWTH=1",
                 "-sSTACK_SIZE=1000000",
+                "-sEXPORTED_FUNCTIONS=['_main']",
+                "-sEXPORTED_RUNTIME_METHODS=['ccall','cwrap']",
+                "-sENVIRONMENT=web",
+                "-sINVOKE_RUN=0",
                 "-Wl,-u,ntohs"
             ],
             "embed": ["shaders"],
