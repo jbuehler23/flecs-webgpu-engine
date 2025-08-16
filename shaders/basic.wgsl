@@ -83,7 +83,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let diffuse = max(dot(normal, light_dir), 0.0);
     
     // Combine lighting with instance color
-    let ambient_contribution = light.ambient * 0.2;
+    let ambient_color = vec3<f32>(light.ambient.x, light.ambient.y, light.ambient_strength);
+    let ambient_contribution = ambient_color * 0.2;
     let diffuse_contribution = light.color * diffuse * light.intensity;
     let final_color = in.color * (ambient_contribution + diffuse_contribution);
     
