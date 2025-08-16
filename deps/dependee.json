@@ -1,0 +1,49 @@
+{
+    "dependee": {
+        "lang.c": {
+            "${cfg sanitize}": {
+                "defines": [
+                    "FLECS_SANITIZE"
+                ]
+            }
+        },
+        "lang.cpp": {
+            "${cfg sanitize}": {
+                "defines": [
+                    "FLECS_SANITIZE"
+                ]
+            }
+        }
+    },
+    "lang.c": {
+        "${os linux}": {
+            "lib": [
+                "rt",
+                "pthread",
+                "m"
+            ],
+            "${cfg debug}": {
+                "export-symbols": true
+            },
+            "${cfg sanitize}": {
+                "export-symbols": true
+            }
+        },
+        "${os windows}": {
+            "lib": [
+                "ws2_32"
+            ],
+            "defines": [
+                "_WINDOWS",
+                "_USRDLL",
+                "CGLM_EXPORTS",
+                "CGLM_DLL"
+            ]
+        },
+        "${cfg sanitize}": {
+            "defines": [
+                "FLECS_SANITIZE"
+            ]
+        }
+    }
+}

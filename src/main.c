@@ -1,402 +1,129 @@
 /**
  * @file main.c
- * @brief WebGPU Systems module implementation for Flecs.
+ * @brief Flecs WebGPU Engine Demo Application - following tower_defense pattern
  */
 
-#include "private_api.h"
+#include "flecs_systems_webgpu.h"
 
-/* Component declarations and definitions */
-ECS_COMPONENT_DECLARE(WebGPURenderer);
-ECS_COMPONENT_DECLARE(WebGPUGeometry);
-ECS_COMPONENT_DECLARE(WebGPUMaterial);
-ECS_COMPONENT_DECLARE(WebGPUQuery);
+/* Include the main WebGPU system implementation */
+#include "main_internal.c"
 
-/* Geometry type entities */
-ECS_DECLARE(WebGPUBoxGeometry);
-ECS_DECLARE(WebGPURectangleGeometry);
+/* Global state for demo */
+static ecs_world_t *g_world = NULL;
+static ecs_entity_t g_renderer = 0;
 
-/* Static renderer instance (singleton pattern) */
-static ecs_entity_t webgpu_renderer_instance = 0;
+/* Forward declarations */
+static void demo_create_scene(void);
 
 /**
- * WebGPU device error callback
+ * Initialize the demo world
  */
-static void webgpu_device_error_callback(WGPUErrorType type, const char* message, void* userdata) {
-    const char* type_str;
-    switch (type) {
-        case WGPUErrorType_Validation: type_str = "Validation"; break;
-        case WGPUErrorType_OutOfMemory: type_str = "OutOfMemory"; break;
-        case WGPUErrorType_Internal: type_str = "Internal"; break;
-        case WGPUErrorType_Unknown: type_str = "Unknown"; break;
-        case WGPUErrorType_DeviceLost: type_str = "DeviceLost"; break;
-        default: type_str = "Unhandled"; break;
-    }
+static void demo_init() {
+    ecs_log_set_level(1); // Enable info logging
+    ecs_trace("Initializing Flecs WebGPU demo");
     
-    ecs_err("WebGPU %s Error: %s", type_str, message);
-    
-#ifdef WEBGPU_BACKEND_EMSCRIPTEN
-    /* Log to browser console for debugging */
-    EM_ASM({
-        console.error('WebGPU Error:', UTF8ToString($0), UTF8ToString($1));
-    }, type_str, message);
-#endif
-}
-
-/**
- * Adapter request callback
- */
-static void webgpu_adapter_callback(WGPURequestAdapterStatus status, WGPUAdapter adapter, const char* message, void* userdata) {
-    if (status != WGPURequestAdapterStatus_Success) {
-        ecs_err("WebGPU: Failed to request adapter: %s", message ? message : "Unknown error");
+    /* Create Flecs world */
+    g_world = ecs_init();
+    if (!g_world) {
+        ecs_err("Failed to create Flecs world");
         return;
     }
     
-    ecs_trace("WebGPU: Adapter acquired successfully");
+    /* Import WebGPU systems */
+    FlecsSystemsWebGPUImport(g_world);
     
-    /* Store adapter in renderer component */
-    WebGPURenderer* renderer = (WebGPURenderer*)userdata;
-    renderer->adapter = adapter;
+    /* Create canvas entity for web demo */
+    ecs_entity_t canvas = ecs_new(g_world);
+    ecs_set(g_world, canvas, EcsCanvas, {
+        .width = 1024,
+        .height = 600
+    });
+    
+    /* Create renderer entity */
+    g_renderer = ecs_new(g_world);
+    ecs_add(g_world, g_renderer, WebGPURenderer);
+    ecs_add(g_world, g_renderer, WebGPUQuery);
+    
+    /* Create some demo entities */
+    demo_create_scene();
+    
+    ecs_trace("Flecs WebGPU demo initialized successfully");
 }
 
 /**
- * Device request callback
+ * Create demo scene with some basic entities
  */
-static void webgpu_device_callback(WGPURequestDeviceStatus status, WGPUDevice device, const char* message, void* userdata) {
-    if (status != WGPURequestDeviceStatus_Success) {
-        ecs_err("WebGPU: Failed to request device: %s", message ? message : "Unknown error");
-        return;
-    }
+static void demo_create_scene() {
+    if (!g_world) return;
     
-    ecs_trace("WebGPU: Device acquired successfully");
-    
-    /* Store device in renderer component and set up error callback */
-    WebGPURenderer* renderer = (WebGPURenderer*)userdata;
-    renderer->device = device;
-    renderer->queue = wgpuDeviceGetQueue(device);
-    
-    wgpuDeviceSetUncapturedErrorCallback(device, webgpu_device_error_callback, NULL);
-}
-
-/**
- * Initialize WebGPU renderer component
- */
-static void webgpu_init_renderer(ecs_iter_t *it) {
-    ecs_world_t *world = it->world;
-    WebGPURenderer *renderer = ecs_field(it, WebGPURenderer, 0);
-    EcsCanvas *canvas = ecs_field(it, EcsCanvas, 1);
-    
-    ecs_trace("WebGPU: Initializing renderer");
-    
-    for (int i = 0; i < it->count; i++) {
-        /* Initialize allocator */
-        renderer[i].allocator = ecs_os_malloc_t(ecs_allocator_t);
-        flecs_allocator_init(renderer[i].allocator);
+    /* Create a few demo boxes */
+    for (int i = 0; i < 5; i++) {
+        ecs_entity_t entity = ecs_new(g_world);
         
-        /* Store canvas reference */
-        renderer[i].canvas_entity = it->entities[i];
-        renderer[i].width = canvas[i].width;
-        renderer[i].height = canvas[i].height;
-        
-        /* Initialize render batches vector */
-        ecs_vec_init_t(renderer[i].allocator, &renderer[i].render_batches, webgpu_render_batch_t, 0);
-        
-        /* Create WebGPU instance */
-        WGPUInstanceDescriptor instance_desc = {
-            .nextInChain = NULL,
-        };
-        
-#ifdef WEBGPU_BACKEND_EMSCRIPTEN
-        renderer[i].instance = wgpuCreateInstance(NULL);
-#else
-        renderer[i].instance = wgpuCreateInstance(&instance_desc);
-#endif
-        
-        if (!renderer[i].instance) {
-            ecs_err("WebGPU: Failed to create instance");
-            continue;
-        }
-        
-        /* Create surface from canvas */
-#ifdef WEBGPU_BACKEND_EMSCRIPTEN
-        WGPUSurfaceDescriptorFromCanvasHTMLSelector canvas_desc = {
-            .chain = {
-                .next = NULL,
-                .sType = WGPUSType_SurfaceDescriptorFromCanvasHTMLSelector,
-            },
-            .selector = "#canvas", /* Default canvas selector */
-        };
-        
-        WGPUSurfaceDescriptor surface_desc = {
-            .nextInChain = (WGPUChainedStruct*)&canvas_desc,
-            .label = "WebGPU Canvas Surface",
-        };
-        
-        renderer[i].surface = wgpuInstanceCreateSurface(renderer[i].instance, &surface_desc);
-#else
-        /* Native surface creation would be platform-specific (GLFW, SDL, etc.) */
-        ecs_warn("WebGPU: Native surface creation not implemented");
-        renderer[i].surface = NULL;
-#endif
-        
-        /* Request adapter */
-        WGPURequestAdapterOptions adapter_options = {
-            .nextInChain = NULL,
-            .compatibleSurface = renderer[i].surface,
-            .powerPreference = WGPUPowerPreference_HighPerformance,
-            .forceFallbackAdapter = false,
-        };
-        
-        wgpuInstanceRequestAdapter(renderer[i].instance, &adapter_options, 
-                                  webgpu_adapter_callback, &renderer[i]);
-        
-        /* Create geometry query for renderable entities */
-        renderer[i].geometry_query = ecs_query(world, {
-            .expr = "[in] flecs.systems.webgpu.Geometry"
+        /* Add transform component */
+        ecs_set(g_world, entity, EcsTransform3, {
+            .value = GLM_MAT4_IDENTITY_INIT
         });
         
-        ecs_trace("WebGPU: Renderer initialization complete");
+        /* Set position in transform matrix */
+        EcsTransform3 *transform = ecs_get_mut(g_world, entity, EcsTransform3);
+        if (transform) {
+            glm_translate(transform->value, (vec3){i * 2.0f - 4.0f, 0.0f, -5.0f});
+            ecs_modified(g_world, entity, EcsTransform3);
+        }
+        
+        /* Add color component */
+        ecs_set(g_world, entity, EcsRgb, {
+            .r = (float)i / 5.0f, 
+            .g = 0.5f, 
+            .b = 1.0f - (float)i / 5.0f
+        });
+        
+        /* Add box geometry component */
+        ecs_add(g_world, entity, EcsBox);
+        
+        ecs_trace("Created demo box entity %llu at position (%.2f, 0, -5)", 
+                 entity, i * 2.0f - 4.0f);
     }
-    
-    /* Disable system after first run */
-    ecs_enable(world, it->system, false);
 }
 
 /**
- * Main rendering system
+ * Main application entry point - like tower_defense
  */
-static void webgpu_render_system(ecs_iter_t *it) {
-    ecs_world_t *world = it->world;
-    WebGPURenderer *renderer = ecs_field(it, WebGPURenderer, 0);
-    WebGPUQuery *query = ecs_field(it, WebGPUQuery, 1);
+int main() {
+    /* Initialize the demo */
+    demo_init();
     
-    if (it->count > 1) {
-        ecs_err("WebGPU: Multiple renderer instances not supported");
-        return;
+    if (!g_world) {
+        ecs_err("Failed to initialize demo");
+        return -1;
     }
     
-    if (!renderer->device) {
-        /* Device not ready yet */
-        return;
+    /* Main loop - let Emscripten handle this with emscripten_set_main_loop */
+#ifdef __EMSCRIPTEN__
+    /* For Emscripten, the main loop is handled by the browser */
+    ecs_trace("Flecs WebGPU demo ready for web");
+    
+    /* Set target FPS for web */
+    ecs_set_target_fps(g_world, 60);
+    
+    /* Run indefinitely - browser controls the loop */
+    ecs_progress(g_world, 0); // Initial frame
+    
+    /* The browser will continue calling our progress function */
+    return 0;
+#else
+    /* Native application loop */
+    ecs_trace("Running native application loop");
+    
+    ecs_set_target_fps(g_world, 60);
+    
+    while (ecs_progress(g_world, 0)) {
+        /* Continue until quit */
     }
-    
-    /* Check for canvas resize */
-    const EcsCanvas *canvas = ecs_get(world, renderer->canvas_entity, EcsCanvas);
-    if (canvas && (renderer->width != canvas->width || renderer->height != canvas->height)) {
-        renderer->width = canvas->width;
-        renderer->height = canvas->height;
-        renderer->needs_resize = true;
-        ecs_trace("WebGPU: Canvas resize detected: %dx%d", renderer->width, renderer->height);
-    }
-    
-    /* Get current surface texture (modern WebGPU approach) */
-    WGPUSurfaceTexture surface_texture;
-    wgpuSurfaceGetCurrentTexture(renderer->surface, &surface_texture);
-    if (surface_texture.status != WGPUSurfaceGetCurrentTextureStatus_Success) {
-        ecs_warn("WebGPU: Failed to get current surface texture");
-        return;
-    }
-    
-    WGPUTextureView back_buffer = wgpuTextureCreateView(surface_texture.texture, NULL);
-    if (!back_buffer) {
-        ecs_warn("WebGPU: Failed to create texture view");
-        return;
-    }
-    
-    /* Begin command encoding */
-    WGPUCommandEncoderDescriptor encoder_desc = {
-        .label = "WebGPU Frame Command Encoder",
-    };
-    renderer->command_encoder = wgpuDeviceCreateCommandEncoder(renderer->device, &encoder_desc);
-    
-    /* Begin render pass */
-    WGPURenderPassColorAttachment color_attachment = {
-        .view = back_buffer,
-        .loadOp = WGPULoadOp_Clear,
-        .storeOp = WGPUStoreOp_Store,
-        .clearValue = { 0.1f, 0.2f, 0.3f, 1.0f }, /* Dark blue background */
-    };
-    
-    WGPURenderPassDescriptor render_pass_desc = {
-        .label = "WebGPU Main Render Pass",
-        .colorAttachmentCount = 1,
-        .colorAttachments = &color_attachment,
-    };
-    
-    WGPURenderPassEncoder render_pass = wgpuCommandEncoderBeginRenderPass(renderer->command_encoder, &render_pass_desc);
-    
-    /* Gather and render geometry batches */
-    webgpu_gather_geometry_batches(world, renderer, query->query);
-    webgpu_execute_render_batches(renderer, render_pass);
-    
-    /* End render pass */
-    wgpuRenderPassEncoderEnd(render_pass);
-    
-    /* Submit commands */
-    WGPUCommandBufferDescriptor cmd_buffer_desc = {
-        .label = "WebGPU Frame Commands",
-    };
-    WGPUCommandBuffer command_buffer = wgpuCommandEncoderFinish(renderer->command_encoder, &cmd_buffer_desc);
-    wgpuQueueSubmit(renderer->queue, 1, &command_buffer);
-    
-    /* Present frame */
-    wgpuSurfacePresent(renderer->surface);
     
     /* Cleanup */
-    wgpuTextureViewRelease(back_buffer);
-    wgpuCommandBufferRelease(command_buffer);
-    wgpuRenderPassEncoderRelease(render_pass);
-    wgpuCommandEncoderRelease(renderer->command_encoder);
-    
-    renderer->frame_index++;
-}
-
-/**
- * Component lifecycle functions
- */
-ECS_CTOR(WebGPURenderer, ptr, {
-    ecs_os_memset_t(ptr, 0, WebGPURenderer);
-})
-
-ECS_DTOR(WebGPURenderer, ptr, {
-    if (ptr->allocator) {
-        ecs_vec_fini_t(ptr->allocator, &ptr->render_batches, webgpu_render_batch_t);
-        flecs_allocator_fini(ptr->allocator);
-        ecs_os_free(ptr->allocator);
-    }
-    
-    if (ptr->geometry_query) {
-        ecs_query_fini(ptr->geometry_query);
-    }
-    
-    /* SwapChain no longer used in modern WebGPU */
-    
-    if (ptr->surface) {
-        wgpuSurfaceRelease(ptr->surface);
-    }
-    
-    if (ptr->queue) {
-        wgpuQueueRelease(ptr->queue);
-    }
-    
-    if (ptr->device) {
-        wgpuDeviceRelease(ptr->device);
-    }
-    
-    if (ptr->adapter) {
-        wgpuAdapterRelease(ptr->adapter);
-    }
-    
-    if (ptr->instance) {
-        wgpuInstanceRelease(ptr->instance);
-    }
-})
-
-/**
- * WebGPUGeometry component lifecycle functions
- */
-ECS_CTOR(WebGPUGeometry, ptr, {
-    ecs_os_memset_t(ptr, 0, WebGPUGeometry);
-})
-
-ECS_DTOR(WebGPUGeometry, ptr, {
-    if (ptr->allocator) {
-        ecs_vec_fini_t(ptr->allocator, &ptr->transform_data, mat4);
-        ecs_vec_fini_t(ptr->allocator, &ptr->color_data, vec3);
-        ecs_vec_fini_t(ptr->allocator, &ptr->material_data, float);
-        flecs_allocator_fini(ptr->allocator);
-        ecs_os_free(ptr->allocator);
-    }
-    
-    if (ptr->query) {
-        ecs_query_fini(ptr->query);
-    }
-    
-    if (ptr->vertex_buffer != NULL) {
-        wgpuBufferRelease(ptr->vertex_buffer);
-    }
-    
-    if (ptr->index_buffer != NULL) {
-        wgpuBufferRelease(ptr->index_buffer);
-    }
-    
-    if (ptr->instance_buffer != NULL) {
-        wgpuBufferRelease(ptr->instance_buffer);
-    }
-    
-    if (ptr->pipeline != NULL) {
-        wgpuRenderPipelineRelease(ptr->pipeline);
-    }
-    
-    if (ptr->bind_group != NULL) {
-        wgpuBindGroupRelease(ptr->bind_group);
-    }
-})
-
-/**
- * Module import function
- */
-void FlecsSystemsWebGPUImport(ecs_world_t *world) {
-    ECS_MODULE(world, FlecsSystemsWebGPU);
-    
-    /* Import dependencies */
-    ECS_IMPORT(world, FlecsComponentsGui);
-    ECS_IMPORT(world, FlecsComponentsInput);
-    ECS_IMPORT(world, FlecsComponentsGraphics);
-    ECS_IMPORT(world, FlecsComponentsTransform);
-    ECS_IMPORT(world, FlecsComponentsGeometry);
-    ECS_IMPORT(world, FlecsSystemsTransform);
-    
-    ecs_log_push();
-    ecs_trace("WebGPU: Module import started");
-    
-    /* Define components */
-    ECS_COMPONENT_DEFINE(world, WebGPURenderer);
-    ECS_COMPONENT_DEFINE(world, WebGPUGeometry);
-    ECS_COMPONENT_DEFINE(world, WebGPUMaterial);
-    ECS_COMPONENT_DEFINE(world, WebGPUQuery);
-    
-    /* Set component hooks */
-    ecs_set_hooks(world, WebGPURenderer, {
-        .ctor = ecs_ctor(WebGPURenderer),
-        .dtor = ecs_dtor(WebGPURenderer)
-    });
-    
-    /* Initialize renderer system */
-    ECS_SYSTEM(world, webgpu_init_renderer, EcsOnLoad,
-        [out] !WebGPURenderer($), 
-        [in] flecs.components.gui.Canvas);
-        
-    ecs_system(world, {
-        .entity = webgpu_init_renderer,
-        .immediate = true  /* Need direct world access for query creation */
-    });
-    
-    /* Main rendering system */
-    ECS_SYSTEM(world, webgpu_render_system, EcsOnStore,
-        [in] WebGPURenderer($), 
-        [in] WebGPUQuery);
-    
-    /* Create singleton query component */
-    ecs_singleton_set(world, WebGPUQuery, {
-        .query = ecs_query(world, { 
-            .expr = "[in] flecs.systems.webgpu.Geometry" 
-        })
-    });
-    
-    /* Define geometry component with lifecycle hooks */
-    ECS_COMPONENT_DEFINE(world, WebGPUGeometry);
-    ecs_set_hooks(world, WebGPUGeometry, {
-        .ctor = ecs_ctor(WebGPUGeometry),
-        .dtor = ecs_dtor(WebGPUGeometry)
-    });
-    
-    /* Create geometry type entities */
-    ECS_ENTITY_DEFINE(world, WebGPUBoxGeometry, WebGPUGeometry);
-    ECS_ENTITY_DEFINE(world, WebGPURectangleGeometry, WebGPUGeometry);
-    
-    /* Import material subsystem */
-    webgpu_material_import(world);
-    
-    ecs_trace("WebGPU: Module import completed");
-    ecs_log_pop();
+    ecs_fini(g_world);
+    return 0;
+#endif
 }

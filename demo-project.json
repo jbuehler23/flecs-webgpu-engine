@@ -32,8 +32,7 @@
                 "-sSTACK_SIZE=1000000",
                 "-Wl,-u,ntohs"
             ],
-            "embed": ["shaders"],
-            "exclude": ["src/main_internal.c"]
+            "embed": ["shaders"]
         }
     }
 }

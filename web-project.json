@@ -1,0 +1,35 @@
+{
+    "id": "flecs.webgpu.web",
+    "type": "application",
+    "value": {
+        "author": "Flecs Community",
+        "description": "Flecs WebGPU Engine - Web Application",
+        "use": [
+            "flecs",
+            "flecs.components.gui",
+            "flecs.components.input", 
+            "flecs.components.graphics",
+            "flecs.components.transform",
+            "flecs.components.geometry",
+            "flecs.systems.transform"
+        ]
+    },
+    "lang.c": {
+        "${target em}": {
+            "cflags": ["-DWEBGPU_BACKEND_EMSCRIPTEN", "-std=gnu99"],
+            "ldflags": [
+                "-sUSE_WEBGPU=1",
+                "-sASYNCIFY=1", 
+                "-sALLOW_MEMORY_GROWTH=1",
+                "-sEXPORTED_FUNCTIONS=['_main','_flecs_webgpu_init','_flecs_webgpu_create_box','_flecs_webgpu_create_rectangle','_flecs_webgpu_delete_entity','_flecs_webgpu_clear_entities','_flecs_webgpu_step','_flecs_webgpu_get_entity_count','_flecs_webgpu_shutdown','_malloc','_free']",
+                "-sEXPORTED_RUNTIME_METHODS=['ccall','cwrap']",
+                "-sMODULARIZE=1",
+                "-sEXPORT_NAME='FlecsWebGPU'",
+                "-sINVOKE_RUN=0",
+                "--embed-file shaders"
+            ],
+            "src": ["src/web-main.c", "src/main.c", "src/resources/*.c", "src/rendering/*.c", "src/math/*.c", "src/shaders/*.c"],
+            "embed": ["shaders"]
+        }
+    }
+}
