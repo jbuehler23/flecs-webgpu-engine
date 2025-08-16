@@ -1,104 +1,152 @@
-# Flecs WebGPU Rendering Engine
+# Flecs WebGPU Engine
 
-A high-performance web-native rendering system for [Flecs ECS](https://github.com/SanderMertens/flecs) applications. This project addresses the critical gap in modern game engines by providing first-class web deployment capabilities without sacrificing performance or development ergonomics.
+A simple 3D rendering engine for Flecs that runs in web browsers using WebAssembly and WebGPU.
 
-## Overview
+## What is this?
 
-The traditional approach to web graphics has relied on WebGL, which presents significant limitations for modern game development workflows. WebGPU represents the next evolution of web graphics APIs, providing near-native performance with a modern, compute-capable programming model. This rendering engine leverages WebGPU to deliver a seamless development experience where games can target web browsers as efficiently as native platforms.
+If you're familiar with Flecs ECS and want to render 3D graphics in a web browser, this project gives you:
 
-The engine maintains complete compatibility with the existing Flecs component ecosystem while providing automatic GPU resource management, efficient entity batching, and modern graphics features. Developers familiar with Flecs will find the rendering integration transparent and intuitive.
+- **WebGPU rendering**: Uses the new WebGPU API for fast 3D graphics in browsers
+- **Component-based**: Works with Flecs components you already know (EcsTransform3, EcsRgb, EcsBox)
+- **WebAssembly**: Your C code compiles to WASM and runs directly in the browser
+- **No JavaScript required**: Write everything in C using Flecs patterns
 
-## Technical Approach
+## Quick Start
 
-The architecture follows established ECS patterns where rendering is driven by component queries rather than explicit render calls. Entities with geometric components are automatically discovered, batched by geometry type, and submitted to the GPU with minimal overhead. This approach ensures optimal performance scaling from simple prototypes to complex scenes with thousands of entities.
+### 1. Build the demo
 
-Key architectural decisions include:
-- Component-driven rendering pipeline that integrates naturally with Flecs queries
-- Automatic instancing for entities sharing geometry types
-- Modern shader pipeline using WGSL (WebGPU Shading Language)
-- Cross-platform compatibility targeting both web (Emscripten) and native (Dawn) environments
-- Zero-allocation rendering paths for performance-critical applications
+```bash
+# Clone and build
+git clone <this-repo>
+cd flecs-webgpu-engine
 
-## Getting Started
+# Build for web (requires Emscripten)
+source /path/to/emsdk/emsdk_env.sh
+bake --target em
 
-The rendering system integrates seamlessly with existing Flecs applications. Basic usage requires only importing the WebGPU module and using standard Flecs components:
+# Start the demo server
+cd web-demo
+./run-demo.sh
+```
 
-```cpp
-#include <flecs.h>
-#include <flecs_systems_webgpu.h>
+Visit `http://localhost:8080/flecs-native.html` to see 5 colored boxes rendered with WebGPU.
+
+### 2. Basic usage in your code
+
+```c
+#include "flecs_systems_webgpu.h"
 
 int main() {
-    flecs::world world;
+    ecs_world_t *world = ecs_init();
     
-    // Import WebGPU rendering capabilities
-    world.import<flecs::systems::webgpu>();
+    // Import the WebGPU rendering system
+    FlecsSystemsWebGPUImport(world);
     
-    // Create renderable entities using standard components
-    auto cube = world.entity()
-        .set<flecs::components::transform::Position3>({0, 0, 0})
-        .set<flecs::components::geometry::Box>({1, 1, 1})
-        .set<flecs::components::graphics::Rgb>({1, 0, 0});
+    // Create a simple cube
+    ecs_entity_t cube = ecs_new(world);
+    ecs_set(world, cube, EcsTransform3, {
+        .value = GLM_MAT4_IDENTITY_INIT
+    });
+    ecs_set(world, cube, EcsRgb, {.r = 1.0f, .g = 0.0f, .b = 0.0f});
+    ecs_add(world, cube, EcsBox);
     
-    // Rendering happens automatically during world progression
-    while (world.progress()) { }
+    // The WebGPU system automatically renders entities with these components
+    while (ecs_progress(world, 0)) {
+        // Your game loop here
+    }
     
     return 0;
 }
 ```
 
-## Build Requirements
+## How it works
 
-**Native Development:**
-- C++11 compatible compiler
-- Dawn WebGPU implementation or wgpu-native
-- CMake 3.16+ or Bake build system
+The rendering system looks for entities that have:
+- `EcsTransform3` - Position/rotation/scale matrix
+- `EcsRgb` - Color 
+- Geometry component (`EcsBox`, `EcsRectangle`, etc.)
 
-**Web Deployment:**
-- Emscripten SDK 3.1.25+
-- WebGPU-capable browser (Chrome 113+, Firefox with experimental features)
+It automatically batches these entities by geometry type and sends them to the GPU in one draw call.
 
-## Implementation Status
+## Browser Requirements
 
-This project represents a comprehensive foundation for web-native game development. The current implementation includes:
+You need a recent browser with WebGPU support:
+- **Chrome 113+**: Works out of the box
+- **Edge 113+**: Works out of the box  
+- **Firefox**: Enable `dom.webgpu.enabled` in about:config
+- **Safari**: Enable "WebGPU" in Developer menu
 
-**Completed:**
-- Core WebGPU device and resource management
-- Component-driven geometry system with automatic instancing
-- Modern WGSL shader pipeline with PBR material support
-- Cross-platform build configuration for native and web targets
-- Comprehensive architecture documentation and technical analysis
+## Building
 
-**In Progress:**
-- GPU resource allocation and buffer management
-- Basic primitive rendering (boxes, rectangles)
-- Integration testing with existing Flecs Hub modules
+### For Web (Emscripten)
+```bash
+# Setup Emscripten (one time)
+git clone https://github.com/emscripten-core/emsdk.git
+cd emsdk && ./emsdk install latest && ./emsdk activate latest
 
-**Planned:**
-- Advanced lighting models and shadow mapping
-- Texture loading and material systems
-- Post-processing effects pipeline
-- Performance optimization for large-scale scenes
+# Build 
+source ./emsdk_env.sh
+cd flecs-webgpu-engine
+bake --target em
+```
 
-## Technical Documentation
+### For Native (Coming Soon)
+```bash
+bake  # Will build with Dawn WebGPU for desktop
+```
 
-Detailed technical documentation is available in the `docs/` directory:
+## Project Structure
 
-- `ARCHITECTURE.md` - System design and component integration patterns
-- `RESEARCH.md` - Analysis of existing Flecs rendering systems
-- `WEBGPU.md` - WebGPU backend selection and integration details
-- `BUILD.md` - Cross-platform build configuration
-- `ROADMAP.md` - Development timeline and milestones
+```
+flecs-webgpu-engine/
+├── src/
+│   ├── main.c              # Demo application + core systems
+│   ├── resources/          # GPU buffer/pipeline management  
+│   ├── rendering/          # Entity batching and draw calls
+│   ├── shaders/            # WGSL vertex/fragment shaders
+│   └── geometry/           # Box, rectangle vertex data
+├── web-demo/              # HTML demo page
+└── include/               # Public API headers
+```
 
-## Project Philosophy
+## What's Implemented
 
-This engine prioritizes practical game development needs over academic purity. Design decisions favor developer productivity, maintainable code, and predictable performance characteristics. The goal is to enable game developers to ship high-quality web applications without requiring deep graphics programming expertise.
+**Working:**
+- Basic box and rectangle rendering
+- Component-based entity system
+- Automatic GPU batching by geometry type
+- WebAssembly build system
+- WGSL shader pipeline
 
-The project maintains strict compatibility with existing Flecs patterns and components, ensuring that adoption requires minimal changes to existing codebases. Performance optimizations are implemented transparently, allowing developers to focus on game logic rather than rendering details.
+**TODO:**
+- Texture loading
+- More geometry types (spheres, etc.)
+- Lighting system improvements
+- Native desktop builds
+- Documentation improvements
+
+## Troubleshooting
+
+**"Failed to initialize WebGPU"**
+- Check if your browser supports WebGPU
+- Try enabling "Unsafe WebGPU" in chrome://flags
+
+**"Module loading failed"**
+- Check browser console for detailed errors
+- Make sure you're serving files over HTTP (not file://)
+
+**"Nothing renders"**
+- Check that entities have EcsTransform3, EcsRgb, and a geometry component
+- Look for WebGPU errors in browser console
+
+## Contributing
+
+This is a learning project! If you find bugs or want to add features:
+
+1. Open an issue describing what you want to fix/add
+2. Keep changes simple and well-documented
+3. Test with the web demo
 
 ## License
 
-MIT License - See [LICENSE](LICENSE) for complete terms.
-
-## Acknowledgments
-
-This work builds upon the excellent foundation provided by the Flecs ECS framework and the existing flecs-systems-sokol implementation. Technical decisions were informed by modern graphics programming practices and the specific requirements of web deployment environments.
+MIT - See LICENSE file

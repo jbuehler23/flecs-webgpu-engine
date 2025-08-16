@@ -30,13 +30,10 @@ var Module = moduleArg;
 // Determine the runtime environment we are in. You can customize this by
 // setting the ENVIRONMENT setting at compile time (see settings.js).
 
-// Attempt to auto-detect the environment
-var ENVIRONMENT_IS_WEB = typeof window == 'object';
-var ENVIRONMENT_IS_WORKER = typeof WorkerGlobalScope != 'undefined';
-// N.b. Electron.js environment is simultaneously a NODE-environment, but
-// also a web environment.
-var ENVIRONMENT_IS_NODE = typeof process == 'object' && process.versions?.node && process.type != 'renderer';
-var ENVIRONMENT_IS_SHELL = !ENVIRONMENT_IS_WEB && !ENVIRONMENT_IS_NODE && !ENVIRONMENT_IS_WORKER;
+var ENVIRONMENT_IS_WEB = true;
+var ENVIRONMENT_IS_WORKER = false;
+var ENVIRONMENT_IS_NODE = false;
+var ENVIRONMENT_IS_SHELL = false;
 
 // --pre-jses are emitted after the Module integration code, so that they can
 // refer to Module (if they choose; they can also define Module)
@@ -47,13 +44,6 @@ var thisProgram = './this.program';
 var quit_ = (status, toThrow) => {
   throw toThrow;
 };
-
-if (typeof __filename != 'undefined') { // Node
-  _scriptName = __filename;
-} else
-if (ENVIRONMENT_IS_WORKER) {
-  _scriptName = self.location.href;
-}
 
 // `/` should be present at the end if `scriptDirectory` is not empty
 var scriptDirectory = '';
@@ -67,52 +57,6 @@ function locateFile(path) {
 // Hooks that are implemented differently in different runtime environments.
 var readAsync, readBinary;
 
-if (ENVIRONMENT_IS_NODE) {
-  const isNode = typeof process == 'object' && process.versions?.node && process.type != 'renderer';
-  if (!isNode) throw new Error('not compiled for this environment (did you build to HTML and try to run it not on the web, or set ENVIRONMENT to something - like node - and run it someplace else - like on the web?)');
-
-  var nodeVersion = process.versions.node;
-  var numericVersion = nodeVersion.split('.').slice(0, 3);
-  numericVersion = (numericVersion[0] * 10000) + (numericVersion[1] * 100) + (numericVersion[2].split('-')[0] * 1);
-  if (numericVersion < 160000) {
-    throw new Error('This emscripten-generated code requires node v16.0.0 (detected v' + nodeVersion + ')');
-  }
-
-  // These modules will usually be used on Node.js. Load them eagerly to avoid
-  // the complexity of lazy-loading.
-  var fs = require('fs');
-
-  scriptDirectory = __dirname + '/';
-
-// include: node_shell_read.js
-readBinary = (filename) => {
-  // We need to re-wrap `file://` strings to URLs.
-  filename = isFileURI(filename) ? new URL(filename) : filename;
-  var ret = fs.readFileSync(filename);
-  assert(Buffer.isBuffer(ret));
-  return ret;
-};
-
-readAsync = async (filename, binary = true) => {
-  // See the comment in the `readBinary` function.
-  filename = isFileURI(filename) ? new URL(filename) : filename;
-  var ret = fs.readFileSync(filename, binary ? undefined : 'utf8');
-  assert(binary ? Buffer.isBuffer(ret) : typeof ret == 'string');
-  return ret;
-};
-// end include: node_shell_read.js
-  if (process.argv.length > 1) {
-    thisProgram = process.argv[1].replace(/\\/g, '/');
-  }
-
-  arguments_ = process.argv.slice(2);
-
-  quit_ = (status, toThrow) => {
-    process.exitCode = status;
-    throw toThrow;
-  };
-
-} else
 if (ENVIRONMENT_IS_SHELL) {
 
   const isNode = typeof process == 'object' && process.versions?.node && process.type != 'renderer';
@@ -135,37 +79,8 @@ if (ENVIRONMENT_IS_WEB || ENVIRONMENT_IS_WORKER) {
 
   {
 // include: web_or_worker_shell_read.js
-if (ENVIRONMENT_IS_WORKER) {
-    readBinary = (url) => {
-      var xhr = new XMLHttpRequest();
-      xhr.open('GET', url, false);
-      xhr.responseType = 'arraybuffer';
-      xhr.send(null);
-      return new Uint8Array(/** @type{!ArrayBuffer} */(xhr.response));
-    };
-  }
-
-  readAsync = async (url) => {
-    // Fetch has some additional restrictions over XHR, like it can't be used on a file:// url.
-    // See https://github.com/github/fetch/pull/92#issuecomment-140665932
-    // Cordova or Electron apps are typically loaded from a file:// url.
-    // So use XHR on webview if URL is a file URL.
-    if (isFileURI(url)) {
-      return new Promise((resolve, reject) => {
-        var xhr = new XMLHttpRequest();
-        xhr.open('GET', url, true);
-        xhr.responseType = 'arraybuffer';
-        xhr.onload = () => {
-          if (xhr.status == 200 || (xhr.status == 0 && xhr.response)) { // file URLs can return 0
-            resolve(xhr.response);
-            return;
-          }
-          reject(xhr.status);
-        };
-        xhr.onerror = reject;
-        xhr.send(null);
-      });
-    }
+readAsync = async (url) => {
+    assert(!isFileURI(url), "readAsync does not work with file:// URLs");
     var response = await fetch(url, { credentials: 'same-origin' });
     if (response.ok) {
       return response.arrayBuffer();
@@ -194,6 +109,10 @@ var NODEFS = 'NODEFS is no longer included by default; build with -lnodefs.js';
 
 // perform assertions in shell.js after we set up out() and err(), as otherwise
 // if an assertion fails it cannot print the message
+
+assert(!ENVIRONMENT_IS_WORKER, 'worker environment detected but not enabled at build time.  Add `worker` to `-sENVIRONMENT` to enable.');
+
+assert(!ENVIRONMENT_IS_NODE, 'node environment detected but not enabled at build time.  Add `node` to `-sENVIRONMENT` to enable.');
 
 assert(!ENVIRONMENT_IS_SHELL, 'shell environment detected but not enabled at build time.  Add `shell` to `-sENVIRONMENT` to enable.');
 
@@ -589,9 +508,6 @@ function addRunDependency(id) {
         err('(end of list)');
       }
     }, 10000);
-    // Prevent this timer from keeping the runtime alive if nothing
-    // else is.
-    runDependencyWatcher.unref?.()
   }
 }
 
@@ -715,15 +631,6 @@ async function instantiateArrayBuffer(binaryFile, imports) {
 
 async function instantiateAsync(binary, binaryFile, imports) {
   if (!binary
-      // Don't use streaming for file:// delivered objects in a webview, fetch them synchronously.
-      && !isFileURI(binaryFile)
-      // Avoid instantiateStreaming() on Node.js environment for now, as while
-      // Node.js v18.1.0 implements it, it does not have a full fetch()
-      // implementation yet.
-      //
-      // Reference:
-      //   https://github.com/emscripten-core/emscripten/pull/16917
-      && !ENVIRONMENT_IS_NODE
      ) {
     try {
       var response = fetch(binaryFile, { credentials: 'same-origin' });
@@ -937,7 +844,6 @@ async function createWasm() {
       warnOnce.shown ||= {};
       if (!warnOnce.shown[text]) {
         warnOnce.shown[text] = 1;
-        if (ENVIRONMENT_IS_NODE) text = 'warning: ' + text;
         err(text);
       }
     };
@@ -1033,11 +939,6 @@ async function createWasm() {
     };
 
   var initRandomFill = () => {
-      // This block is not needed on v19+ since crypto.getRandomValues is builtin
-      if (ENVIRONMENT_IS_NODE) {
-        var nodeCrypto = require('crypto');
-        return (view) => nodeCrypto.randomFillSync(view);
-      }
   
       return (view) => crypto.getRandomValues(view);
     };
@@ -1240,35 +1141,6 @@ async function createWasm() {
   var FS_stdin_getChar = () => {
       if (!FS_stdin_getChar_buffer.length) {
         var result = null;
-        if (ENVIRONMENT_IS_NODE) {
-          // we will read data by chunks of BUFSIZE
-          var BUFSIZE = 256;
-          var buf = Buffer.alloc(BUFSIZE);
-          var bytesRead = 0;
-  
-          // For some reason we must suppress a closure warning here, even though
-          // fd definitely exists on process.stdin, and is even the proper way to
-          // get the fd of stdin,
-          // https://github.com/nodejs/help/issues/2136#issuecomment-523649904
-          // This started to happen after moving this logic out of library_tty.js,
-          // so it is related to the surrounding code in some unclear manner.
-          /** @suppress {missingProperties} */
-          var fd = process.stdin.fd;
-  
-          try {
-            bytesRead = fs.readSync(fd, buf, 0, BUFSIZE);
-          } catch(e) {
-            // Cross-platform differences: on Windows, reading EOF throws an
-            // exception, but on other OSes, reading EOF returns 0. Uniformize
-            // behavior by treating the EOF exception to return 0.
-            if (e.toString().includes('EOF')) bytesRead = 0;
-            else throw e;
-          }
-  
-          if (bytesRead > 0) {
-            result = buf.slice(0, bytesRead).toString('utf-8');
-          }
-        } else
         if (typeof window != 'undefined' &&
           typeof window.prompt == 'function') {
           // Browser.
@@ -3797,9 +3669,6 @@ async function createWasm() {
   
               // If node we use the ws library.
               var WebSocketConstructor;
-              if (ENVIRONMENT_IS_NODE) {
-                WebSocketConstructor = /** @type{(typeof WebSocket)} */(require('ws'));
-              } else
               {
                 WebSocketConstructor = WebSocket;
               }
@@ -4073,53 +3942,6 @@ async function createWasm() {
           if (!ENVIRONMENT_IS_NODE) {
             throw new FS.ErrnoError(138);
           }
-          if (sock.server) {
-             throw new FS.ErrnoError(28);  // already listening
-          }
-          var WebSocketServer = require('ws').Server;
-          var host = sock.saddr;
-          sock.server = new WebSocketServer({
-            host,
-            port: sock.sport
-            // TODO support backlog
-          });
-          SOCKFS.emit('listen', sock.stream.fd); // Send Event with listen fd.
-  
-          sock.server.on('connection', function(ws) {
-            if (sock.type === 1) {
-              var newsock = SOCKFS.createSocket(sock.family, sock.type, sock.protocol);
-  
-              // create a peer on the new socket
-              var peer = SOCKFS.websocket_sock_ops.createPeer(newsock, ws);
-              newsock.daddr = peer.addr;
-              newsock.dport = peer.port;
-  
-              // push to queue for accept to pick up
-              sock.pending.push(newsock);
-              SOCKFS.emit('connection', newsock.stream.fd);
-            } else {
-              // create a peer on the listen socket so calling sendto
-              // with the listen socket and an address will resolve
-              // to the correct client
-              SOCKFS.websocket_sock_ops.createPeer(sock, ws);
-              SOCKFS.emit('connection', sock.stream.fd);
-            }
-          });
-          sock.server.on('close', function() {
-            SOCKFS.emit('close', sock.stream.fd);
-            sock.server = null;
-          });
-          sock.server.on('error', function(error) {
-            // Although the ws library may pass errors that may be more descriptive than
-            // ECONNREFUSED they are not necessarily the expected error code e.g.
-            // ENOTFOUND on getaddrinfo seems to be node.js specific, so using EHOSTUNREACH
-            // is still probably the most useful thing to do. This error shouldn't
-            // occur in a well written app as errors should get trapped in the compiled
-            // app's own getaddrinfo call.
-            sock.error = 23; // Used in getsockopt for SOL_SOCKET/SO_ERROR test.
-            SOCKFS.emit('error', [sock.stream.fd, sock.error, 'EHOSTUNREACH: Host is unreachable']);
-            // don't throw
-          });
         },
   accept(listensock) {
           if (!listensock.server || !listensock.pending.length) {
@@ -6069,11 +5891,11 @@ async function createWasm() {
     };
   
   /** @type {Object} */
-  var specialHTMLTargets = [0, typeof document != 'undefined' ? document : 0, typeof window != 'undefined' ? window : 0];
+  var specialHTMLTargets = [0, document, window];
   /** @suppress {duplicate } */
   var findEventTarget = (target) => {
       target = maybeCStringToJsString(target);
-      var domElement = specialHTMLTargets[target] || (typeof document != 'undefined' ? document.querySelector(target) : null);
+      var domElement = specialHTMLTargets[target] || document.querySelector(target);
       return domElement;
     };
   var findCanvasEventTarget = findEventTarget;
@@ -6707,6 +6529,7 @@ async function createWasm() {
       if (asyncMode) return Promise.resolve(ret);
       return ret;
     };
+
   
     /**
      * @param {string=} returnType
@@ -6773,6 +6596,7 @@ if (Module['wasmBinary']) wasmBinary = Module['wasmBinary'];
 // Begin runtime exports
   Module['addRunDependency'] = addRunDependency;
   Module['removeRunDependency'] = removeRunDependency;
+  Module['ccall'] = ccall;
   Module['cwrap'] = cwrap;
   Module['FS_preloadFile'] = FS_preloadFile;
   Module['FS_unlink'] = FS_unlink;
@@ -6983,7 +6807,6 @@ missingLibrarySymbols.forEach(missingLibrarySymbol)
   'noExitRuntime',
   'addOnPreRun',
   'addOnPostRun',
-  'ccall',
   'freeTableIndexes',
   'functionsInTableMap',
   'setValue',
@@ -7464,7 +7287,7 @@ function run() {
     Module['onRuntimeInitialized']?.();
     consumedModuleProp('onRuntimeInitialized');
 
-    var noInitialRun = Module['noInitialRun'] || false;
+    var noInitialRun = Module['noInitialRun'] || true;
     if (!noInitialRun) callMain();
 
     postRun();
