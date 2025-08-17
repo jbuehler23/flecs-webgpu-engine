@@ -70,10 +70,15 @@ struct VertexOutput {
 }
 
 struct Light {
-    direction: vec3<f32>,
-    color: vec3<f32>,
-    ambient: vec3<f32>,
+    direction_x: f32,
+    direction_y: f32,
+    direction_z: f32,
     intensity: f32,
+    color_x: f32,
+    color_y: f32,
+    color_z: f32,
+    ambient_strength: f32,
+    ambient_xy: vec2<f32>,
 }
 
 @group(1) @binding(0)
@@ -82,14 +87,17 @@ var<uniform> light: Light;
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let normal = normalize(in.world_normal);
-    let light_dir = normalize(-light.direction);
+    let light_direction = vec3<f32>(light.direction_x, light.direction_y, light.direction_z);
+    let light_dir = normalize(-light_direction);
     
     // Lambertian diffuse lighting
     let ndotl = max(dot(normal, light_dir), 0.0);
-    let diffuse = light.color * light.intensity * ndotl;
+    let light_color = vec3<f32>(light.color_x, light.color_y, light.color_z);
+    let diffuse = light_color * light.intensity * ndotl;
     
     // Combine lighting with material color
-    let final_color = in.color * (light.ambient + diffuse);
+    let ambient_color = vec3<f32>(light.ambient_xy.x, light.ambient_xy.y, light.ambient_strength);
+    let final_color = in.color * (ambient_color + diffuse);
     
     return vec4<f32>(final_color, 1.0);
 }

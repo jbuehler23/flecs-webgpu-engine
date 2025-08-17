@@ -4,35 +4,13 @@
  */
 
 #include "flecs_systems_webgpu.h"
+#include "private_api.h"
 
 /* Math types and operations - include cglm directly */
 #include <math.h>
 #include <cglm/cglm.h>
 
-/* Helper to convert cglm mat4 to flat array when needed */
-static inline void mat4_to_array(mat4 src, float dst[16]) {
-    memcpy(dst, src, sizeof(float) * 16);
-}
-
-/* Render batch for efficient GPU submission */
-typedef struct {
-    ecs_id_t geometry_type;           /* Component ID (EcsBox, EcsRectangle, etc.) */
-    uint32_t instance_count;          /* Number of instances in this batch */
-    
-    /* Component data arrays */
-    EcsTransform3 *transforms;        /* Transform matrices */
-    EcsRgb *colors;                  /* Instance colors */
-    void *geometry_data;             /* Geometry-specific data */
-    
-    /* GPU resources */
-    WGPURenderPipeline pipeline;      /* Graphics pipeline */
-    WGPUBindGroup bind_group;        /* Resource bindings */
-    WGPUBuffer vertex_buffer;        /* Static vertex data */
-    WGPUBuffer index_buffer;         /* Static index data */
-    WGPUBuffer instance_buffer;      /* Instance data */
-    uint32_t vertex_count;
-    uint32_t index_count;
-} webgpu_render_batch_t;
+/* No duplicate definitions needed - using private_api.h */
 
 /* Component declarations and definitions */
 ECS_COMPONENT_DECLARE(WebGPURenderer);
@@ -50,10 +28,7 @@ static ecs_entity_t webgpu_renderer_instance = 0;
 /* Global error flag to stop rendering on validation errors */
 static bool webgpu_error_occurred = false;
 
-/* Forward declarations for missing functions */
-static void webgpu_gather_geometry_batches(ecs_world_t *world, WebGPURenderer *renderer, ecs_query_t *query);
-static void webgpu_execute_render_batches(WebGPURenderer *renderer, WGPURenderPassEncoder render_pass);
-static void webgpu_material_import(ecs_world_t *world);
+/* Local forward declarations */
 static void webgpu_adapter_callback(WGPURequestAdapterStatus status, WGPUAdapter adapter, const char* message, void* userdata);
 static void webgpu_device_callback(WGPURequestDeviceStatus status, WGPUDevice device, const char* message, void* userdata);
 
@@ -182,6 +157,153 @@ static void webgpu_device_callback(WGPURequestDeviceStatus status, WGPUDevice de
     };
     
     wgpuSurfaceConfigure(renderer->surface, &surface_config);
+    
+    /* Create depth texture and view with extensive logging */
+    EM_ASM({
+        console.log('WebGPU: Starting depth texture creation...');
+        console.log('WebGPU: Canvas dimensions:', $0, 'x', $1);
+    }, renderer->width, renderer->height);
+    
+    renderer->depth_texture = webgpu_create_depth_texture(device, renderer->width, renderer->height);
+    
+    if (renderer->depth_texture) {
+        EM_ASM({
+            console.log('WebGPU: ✓ Depth texture created successfully');
+            console.log('WebGPU: Depth texture handle:', $0);
+        }, (uint32_t)(uintptr_t)renderer->depth_texture);
+        
+        renderer->depth_texture_view = webgpu_create_depth_texture_view(renderer->depth_texture);
+        
+        if (renderer->depth_texture_view) {
+            EM_ASM({
+                console.log('WebGPU: ✓ Depth texture view created successfully');
+                console.log('WebGPU: Depth texture view handle:', $0);
+            }, (uint32_t)(uintptr_t)renderer->depth_texture_view);
+        } else {
+            EM_ASM({
+                console.error('WebGPU: ✗ Failed to create depth texture view');
+            });
+        }
+    } else {
+        EM_ASM({
+            console.error('WebGPU: ✗ Failed to create depth texture');
+            console.error('WebGPU: Device handle:', $0);
+            console.error('WebGPU: Canvas dimensions:', $1, 'x', $2);
+        }, (uint32_t)(uintptr_t)device, renderer->width, renderer->height);
+    }
+    
+    /* Create uniform buffers for camera and lighting */
+    EM_ASM({
+        console.log('WebGPU: Creating uniform buffers...');
+    });
+    
+    renderer->camera_uniform_buffer = webgpu_create_camera_uniform_buffer(device);
+    renderer->light_uniform_buffer = webgpu_create_light_uniform_buffer(device);
+    
+    if (renderer->camera_uniform_buffer && renderer->light_uniform_buffer) {
+        EM_ASM({
+            console.log('WebGPU: ✓ Uniform buffers created successfully');
+            console.log('WebGPU: Camera buffer:', $0);
+            console.log('WebGPU: Light buffer:', $1);
+        }, (uint32_t)(uintptr_t)renderer->camera_uniform_buffer, 
+           (uint32_t)(uintptr_t)renderer->light_uniform_buffer);
+        
+        /* Create shaders and pipeline to get bind group layouts */
+        const char *vertex_source = basic_vertex_shader_source;
+        const char *fragment_source = basic_fragment_shader_source;
+        
+        WGPUShaderModule vertex_shader = webgpu_create_shader_module(device, vertex_source);
+        WGPUShaderModule fragment_shader = webgpu_create_shader_module(device, fragment_source);
+        
+        if (vertex_shader && fragment_shader) {
+            renderer->default_pipeline = webgpu_create_geometry_pipeline(device, vertex_shader, fragment_shader);
+            
+            if (renderer->default_pipeline) {
+                EM_ASM({
+                    console.log('WebGPU: ✓ Default render pipeline created');
+                });
+                
+                /* Extract bind group layouts from pipeline - Note: This is a simplified approach */
+                /* In a real implementation, we'd create layouts separately and reuse them */
+                /* For now, we'll create bind group layouts inline */
+                
+                /* Create camera bind group layout */
+                WGPUBindGroupLayoutEntry camera_layout_entries[] = {
+                    {
+                        .binding = 0,
+                        .visibility = WGPUShaderStage_Vertex,
+                        .buffer = {
+                            .type = WGPUBufferBindingType_Uniform,
+                            .hasDynamicOffset = false,
+                            .minBindingSize = sizeof(mat4) * 3,
+                        },
+                    }
+                };
+                
+                WGPUBindGroupLayoutDescriptor camera_layout_desc = {
+                    .label = "Camera Bind Group Layout",
+                    .entryCount = 1,
+                    .entries = camera_layout_entries,
+                };
+                
+                renderer->camera_layout = wgpuDeviceCreateBindGroupLayout(device, &camera_layout_desc);
+                
+                /* Create light bind group layout */
+                WGPUBindGroupLayoutEntry light_layout_entries[] = {
+                    {
+                        .binding = 0,
+                        .visibility = WGPUShaderStage_Fragment,
+                        .buffer = {
+                            .type = WGPUBufferBindingType_Uniform,
+                            .hasDynamicOffset = false,
+                            .minBindingSize = 40, /* Matches our 40-byte Light struct */
+                        },
+                    }
+                };
+                
+                WGPUBindGroupLayoutDescriptor light_layout_desc = {
+                    .label = "Light Bind Group Layout",
+                    .entryCount = 1,
+                    .entries = light_layout_entries,
+                };
+                
+                renderer->light_layout = wgpuDeviceCreateBindGroupLayout(device, &light_layout_desc);
+                
+                /* Create bind groups */
+                renderer->camera_bind_group = webgpu_create_camera_bind_group(device, renderer->camera_layout, renderer->camera_uniform_buffer);
+                renderer->light_bind_group = webgpu_create_light_bind_group(device, renderer->light_layout, renderer->light_uniform_buffer);
+                
+                if (renderer->camera_bind_group && renderer->light_bind_group) {
+                    EM_ASM({
+                        console.log('WebGPU: ✓ Uniform buffer bind groups created successfully');
+                        console.log('WebGPU: Camera bind group:', $0);
+                        console.log('WebGPU: Light bind group:', $1);
+                    }, (uint32_t)(uintptr_t)renderer->camera_bind_group,
+                       (uint32_t)(uintptr_t)renderer->light_bind_group);
+                } else {
+                    EM_ASM({
+                        console.error('WebGPU: ✗ Failed to create uniform buffer bind groups');
+                    });
+                }
+            } else {
+                EM_ASM({
+                    console.error('WebGPU: ✗ Failed to create render pipeline');
+                });
+            }
+            
+            /* Clean up shader modules */
+            wgpuShaderModuleRelease(vertex_shader);
+            wgpuShaderModuleRelease(fragment_shader);
+        } else {
+            EM_ASM({
+                console.error('WebGPU: ✗ Failed to create shader modules');
+            });
+        }
+    } else {
+        EM_ASM({
+            console.error('WebGPU: ✗ Failed to create uniform buffers');
+        });
+    }
     
     EM_ASM({
         console.log('WebGPU: Surface configured for rendering');
@@ -356,10 +478,40 @@ static void webgpu_render_system(ecs_iter_t *it) {
         .depthSlice = -1, /* Required for 2D textures - Emscripten treats -1 as undefined */
     };
     
+    WGPURenderPassDepthStencilAttachment depth_attachment = {
+        .view = renderer->depth_texture_view,
+        .depthClearValue = 1.0f,
+        .depthLoadOp = WGPULoadOp_Clear,
+        .depthStoreOp = WGPUStoreOp_Store,
+        /* No stencil operations for depth-only texture (Depth24Plus format) */
+        .stencilClearValue = 0,
+        .stencilLoadOp = WGPULoadOp_Undefined,
+        .stencilStoreOp = WGPUStoreOp_Undefined,
+    };
+    
+    /* Log depth attachment status before render pass creation */
+    bool has_depth_attachment = renderer->depth_texture_view != NULL;
+    
+#ifdef __EMSCRIPTEN__
+    EM_ASM({
+        console.log('WebGPU: Creating render pass...');
+        console.log('WebGPU: Depth texture view available:', $0 ? 'YES' : 'NO');
+        if ($0) {
+            console.log('WebGPU: Depth texture view handle:', $1);
+            console.log('WebGPU: ✓ Render pass will include depth stencil attachment');
+            console.log('WebGPU: Depth operations: Clear(1.0) -> Store');
+            console.log('WebGPU: Stencil operations: DISABLED (depth-only texture)');
+        } else {
+            console.warn('WebGPU: ⚠ Render pass will NOT include depth stencil attachment');
+        }
+    }, has_depth_attachment, (uint32_t)(uintptr_t)renderer->depth_texture_view);
+#endif
+    
     WGPURenderPassDescriptor render_pass_desc = {
         .label = "WebGPU Main Render Pass",
         .colorAttachmentCount = 1,
         .colorAttachments = &color_attachment,
+        .depthStencilAttachment = has_depth_attachment ? &depth_attachment : NULL,
     };
     
     WGPURenderPassEncoder render_pass = wgpuCommandEncoderBeginRenderPass(renderer->command_encoder, &render_pass_desc);
@@ -410,6 +562,14 @@ ECS_DTOR(WebGPURenderer, ptr, {
     
     if (ptr->geometry_query) {
         ecs_query_fini(ptr->geometry_query);
+    }
+    
+    if (ptr->depth_texture_view) {
+        wgpuTextureViewRelease(ptr->depth_texture_view);
+    }
+    
+    if (ptr->depth_texture) {
+        wgpuTextureRelease(ptr->depth_texture);
     }
     
     if (ptr->surface) {
@@ -555,173 +715,7 @@ static bool get_geometry_buffers(ecs_world_t *world,
                                 uint32_t *index_count);
 static WGPURenderPipeline create_geometry_pipeline(WebGPURenderer *renderer);
 
-/**
- * Gather geometry batches for rendering
- */
-static void webgpu_gather_geometry_batches(ecs_world_t *world, WebGPURenderer *renderer, ecs_query_t *query) {
-    if (!world || !renderer || !query) {
-        return;
-    }
-    
-    /* Clear previous batches */
-    ecs_vec_clear(&renderer->render_batches);
-    
-    /* Iterate through geometry components */
-    ecs_id_t geometry_types[] = { ecs_id(EcsBox), ecs_id(EcsRectangle) };
-    size_t num_geometry_types = sizeof(geometry_types) / sizeof(geometry_types[0]);
-    
-    for (size_t i = 0; i < num_geometry_types; i++) {
-        ecs_id_t geometry_type = geometry_types[i];
-        
-        /* Create dynamic query for this geometry type */
-        ecs_query_t *geometry_query = ecs_query(world, {
-            .terms = {
-                { .id = ecs_id(EcsTransform3), .inout = EcsIn },
-                { .id = ecs_id(EcsRgb), .inout = EcsIn, .oper = EcsOptional },
-                { .id = geometry_type, .inout = EcsIn }
-            }
-        });
-        
-        if (!geometry_query) {
-            continue;
-        }
-        
-        /* Count entities for this geometry type */
-        uint32_t entity_count = 0;
-        ecs_iter_t count_it = ecs_query_iter(world, geometry_query);
-        while (ecs_query_next(&count_it)) {
-            entity_count += count_it.count;
-        }
-        
-        if (entity_count == 0) {
-            ecs_query_fini(geometry_query);
-            continue;
-        }
-        
-        /* Allocate batch data */
-        EcsTransform3 *transforms = ecs_os_malloc(entity_count * sizeof(EcsTransform3));
-        EcsRgb *colors = ecs_os_malloc(entity_count * sizeof(EcsRgb));
-        
-        /* Gather entity data */
-        uint32_t entity_index = 0;
-        ecs_iter_t gather_it = ecs_query_iter(world, geometry_query);
-        while (ecs_query_next(&gather_it)) {
-            EcsTransform3 *batch_transforms = ecs_field(&gather_it, EcsTransform3, 0);
-            EcsRgb *batch_colors = ecs_field(&gather_it, EcsRgb, 1);
-            
-            for (int j = 0; j < gather_it.count; j++) {
-                /* Copy transform */
-                transforms[entity_index] = batch_transforms[j];
-                
-                /* Copy color or use default */
-                if (batch_colors) {
-                    colors[entity_index] = batch_colors[j];
-                } else {
-                    colors[entity_index] = (EcsRgb){ .r = 1.0f, .g = 1.0f, .b = 1.0f };
-                }
-                
-                entity_index++;
-            }
-        }
-        
-        /* Create render batch */
-        webgpu_render_batch_t *batch = ecs_vec_append_t(
-            renderer->allocator, &renderer->render_batches, webgpu_render_batch_t);
-        
-        batch->geometry_type = geometry_type;
-        batch->instance_count = entity_count;
-        batch->transforms = transforms;
-        batch->colors = colors;
-        
-        /* Get geometry buffers */
-        if (!get_geometry_buffers(world, renderer, geometry_type,
-                                 &batch->vertex_buffer, &batch->index_buffer,
-                                 &batch->vertex_count, &batch->index_count)) {
-            ecs_warn("WebGPU: Failed to get geometry buffers for type: %s", 
-                    ecs_get_name(world, geometry_type));
-            continue;
-        }
-        
-        /* Create instance buffer */
-        batch->instance_buffer = create_instance_buffer(
-            renderer->device, transforms, colors, entity_count);
-        
-        /* Create pipeline if needed */
-        if (!renderer->default_pipeline) {
-            renderer->default_pipeline = create_geometry_pipeline(renderer);
-        }
-        batch->pipeline = renderer->default_pipeline;
-        
-        ecs_query_fini(geometry_query);
-        
-        ecs_trace("WebGPU: Created batch for %s with %d instances",
-                 ecs_get_name(world, geometry_type), entity_count);
-    }
-}
-
-/**
- * Execute render batches
- */
-static void webgpu_execute_render_batches(WebGPURenderer *renderer, WGPURenderPassEncoder render_pass) {
-    if (!renderer || !render_pass) {
-        return;
-    }
-    
-    int32_t batch_count = ecs_vec_count(&renderer->render_batches);
-    webgpu_render_batch_t *batches = ecs_vec_first(&renderer->render_batches);
-    
-    for (int32_t i = 0; i < batch_count; i++) {
-        webgpu_render_batch_t *batch = &batches[i];
-        
-        if (!batch->pipeline || !batch->vertex_buffer || 
-            !batch->index_buffer || !batch->instance_buffer) {
-            ecs_warn("WebGPU: Skipping invalid batch for geometry type: %llu",
-                    batch->geometry_type);
-            continue;
-        }
-        
-        /* Set pipeline */
-        wgpuRenderPassEncoderSetPipeline(render_pass, batch->pipeline);
-        
-        /* Bind vertex buffers */
-        wgpuRenderPassEncoderSetVertexBuffer(render_pass, 0, 
-            batch->vertex_buffer, 0, WGPU_WHOLE_SIZE);
-        wgpuRenderPassEncoderSetVertexBuffer(render_pass, 1,
-            batch->instance_buffer, 0, WGPU_WHOLE_SIZE);
-            
-        /* Bind index buffer */
-        wgpuRenderPassEncoderSetIndexBuffer(render_pass, batch->index_buffer,
-            WGPUIndexFormat_Uint16, 0, WGPU_WHOLE_SIZE);
-        
-        /* Draw indexed with instancing */
-        wgpuRenderPassEncoderDrawIndexed(render_pass,
-            batch->index_count, batch->instance_count, 0, 0, 0);
-        
-        ecs_trace("WebGPU: Rendered batch with %d instances, %d indices",
-                 batch->instance_count, batch->index_count);
-    }
-    
-    /* Cleanup batch data */
-    for (int32_t i = 0; i < batch_count; i++) {
-        webgpu_render_batch_t *batch = &batches[i];
-        
-        ecs_os_free(batch->transforms);
-        ecs_os_free(batch->colors);
-        
-        /* GPU resources will be cleaned up by renderer destructor */
-    }
-    
-    ecs_vec_clear(&renderer->render_batches);
-}
-
-/**
- * Import material subsystem
- */
-static void webgpu_material_import(ecs_world_t *world) {
-    /* Simplified implementation - just register default material components */
-    (void)world;
-    ecs_trace("WebGPU: Material subsystem imported (simplified)");
-}
+/* Duplicate functions removed - implementations now in render_system.c */
 
 
 /**

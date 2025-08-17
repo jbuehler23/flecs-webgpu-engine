@@ -36,12 +36,17 @@ struct VertexOutput {
 };
 
 // Fragment shader uniforms (exactly 40 bytes to match buffer layout)
+// Using only f32 and vec2 types to avoid WebGPU vec3 padding
 struct LightUniforms {
-    direction: vec3<f32>,    // 12 bytes
-    intensity: f32,          // 4 bytes  
-    color: vec3<f32>,        // 12 bytes
+    direction_x: f32,        // 4 bytes
+    direction_y: f32,        // 4 bytes
+    direction_z: f32,        // 4 bytes
+    intensity: f32,          // 4 bytes
+    color_x: f32,            // 4 bytes
+    color_y: f32,            // 4 bytes
+    color_z: f32,            // 4 bytes
     ambient_strength: f32,   // 4 bytes
-    ambient: vec2<f32>,      // 8 bytes
+    ambient_xy: vec2<f32>,   // 8 bytes
                             // Total: 40 bytes exactly
 };
 
@@ -79,13 +84,15 @@ fn vs_main(vertex: VertexInput, instance: InstanceInput) -> VertexOutput {
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     // Simple Lambertian diffuse lighting
     let normal = normalize(in.world_normal);
-    let light_dir = normalize(-light.direction);
+    let light_direction = vec3<f32>(light.direction_x, light.direction_y, light.direction_z);
+    let light_dir = normalize(-light_direction);
     let diffuse = max(dot(normal, light_dir), 0.0);
     
     // Combine lighting with instance color
-    let ambient_color = vec3<f32>(light.ambient.x, light.ambient.y, light.ambient_strength);
+    let light_color = vec3<f32>(light.color_x, light.color_y, light.color_z);
+    let ambient_color = vec3<f32>(light.ambient_xy.x, light.ambient_xy.y, light.ambient_strength);
     let ambient_contribution = ambient_color * 0.2;
-    let diffuse_contribution = light.color * diffuse * light.intensity;
+    let diffuse_contribution = light_color * diffuse * light.intensity;
     let final_color = in.color * (ambient_contribution + diffuse_contribution);
     
     return vec4<f32>(final_color, 1.0);

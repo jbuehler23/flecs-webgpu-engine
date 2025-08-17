@@ -89,6 +89,131 @@ WGPUTexture webgpu_create_texture_2d(WGPUDevice device, uint32_t width, uint32_t
 }
 
 /**
+ * Create depth texture following wgpu best practices
+ */
+WGPUTexture webgpu_create_depth_texture(WGPUDevice device, uint32_t width, uint32_t height) {
+    if (!device || width == 0 || height == 0) {
+        ecs_err("webgpu_create_depth_texture: Invalid parameters (device=%p, width=%u, height=%u)", 
+               device, width, height);
+#ifdef __EMSCRIPTEN__
+        EM_ASM({
+            console.error('webgpu_create_depth_texture: Invalid parameters');
+            console.error('Device:', $0, 'Width:', $1, 'Height:', $2);
+        }, (uint32_t)(uintptr_t)device, width, height);
+#endif
+        return (WGPUTexture){0};
+    }
+    
+#ifdef __EMSCRIPTEN__
+    EM_ASM({
+        console.log('webgpu_create_depth_texture: Creating texture with dimensions:', $0, 'x', $1);
+    }, width, height);
+#endif
+    
+    WGPUTextureDescriptor depth_texture_desc = {
+        .label = "Depth Buffer Texture",
+        .usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding,
+        .dimension = WGPUTextureDimension_2D,
+        .size = {
+            .width = width > 0 ? width : 1,
+            .height = height > 0 ? height : 1,
+            .depthOrArrayLayers = 1,
+        },
+        .format = WGPUTextureFormat_Depth24Plus,
+        .mipLevelCount = 1,
+        .sampleCount = 1,
+    };
+    
+#ifdef __EMSCRIPTEN__
+    EM_ASM({
+        console.log('webgpu_create_depth_texture: Calling wgpuDeviceCreateTexture...');
+        console.log('Format: Depth24Plus, Usage: RenderAttachment|TextureBinding');
+    });
+#endif
+    
+    WGPUTexture depth_texture = wgpuDeviceCreateTexture(device, &depth_texture_desc);
+    
+    if (!depth_texture) {
+        ecs_err("webgpu_create_depth_texture: Failed to create depth texture");
+#ifdef __EMSCRIPTEN__
+        EM_ASM({
+            console.error('webgpu_create_depth_texture: wgpuDeviceCreateTexture returned NULL');
+        });
+#endif
+        return NULL;
+    }
+    
+#ifdef __EMSCRIPTEN__
+    EM_ASM({
+        console.log('webgpu_create_depth_texture: ✓ Successfully created depth texture');
+        console.log('Texture handle:', $0);
+    }, (uint32_t)(uintptr_t)depth_texture);
+#endif
+    
+    return depth_texture;
+}
+
+/**
+ * Create depth texture view for render pass attachment
+ */
+WGPUTextureView webgpu_create_depth_texture_view(WGPUTexture depth_texture) {
+    if (!depth_texture) {
+        ecs_err("webgpu_create_depth_texture_view: Invalid depth texture (NULL)");
+#ifdef __EMSCRIPTEN__
+        EM_ASM({
+            console.error('webgpu_create_depth_texture_view: Invalid depth texture (NULL)');
+        });
+#endif
+        return (WGPUTextureView){0};
+    }
+    
+#ifdef __EMSCRIPTEN__
+    EM_ASM({
+        console.log('webgpu_create_depth_texture_view: Creating view for texture handle:', $0);
+    }, (uint32_t)(uintptr_t)depth_texture);
+#endif
+    
+    WGPUTextureViewDescriptor depth_view_desc = {
+        .label = "Depth Buffer View",
+        .format = WGPUTextureFormat_Depth24Plus,
+        .dimension = WGPUTextureViewDimension_2D,
+        .baseMipLevel = 0,
+        .mipLevelCount = 1,
+        .baseArrayLayer = 0,
+        .arrayLayerCount = 1,
+        .aspect = WGPUTextureAspect_DepthOnly,
+    };
+    
+#ifdef __EMSCRIPTEN__
+    EM_ASM({
+        console.log('webgpu_create_depth_texture_view: Calling wgpuTextureCreateView...');
+        console.log('Format: Depth24Plus, Dimension: 2D, Aspect: DepthOnly');
+    });
+#endif
+    
+    WGPUTextureView depth_view = wgpuTextureCreateView(depth_texture, &depth_view_desc);
+    
+    if (!depth_view) {
+        ecs_err("webgpu_create_depth_texture_view: Failed to create depth texture view");
+#ifdef __EMSCRIPTEN__
+        EM_ASM({
+            console.error('webgpu_create_depth_texture_view: wgpuTextureCreateView returned NULL');
+        });
+#endif
+        return NULL;
+    }
+    
+#ifdef __EMSCRIPTEN__
+    EM_ASM({
+        console.log('webgpu_create_depth_texture_view: ✓ Successfully created depth texture view');
+        console.log('View handle:', $0);
+    }, (uint32_t)(uintptr_t)depth_view);
+#endif
+    
+    return depth_view;
+}
+
+/**
  * Create shader module from WGSL source
  */
 WGPUShaderModule webgpu_create_shader_module(WGPUDevice device, const char *wgsl_source) {
@@ -343,9 +468,8 @@ WGPUBuffer webgpu_create_camera_uniform_buffer(WGPUDevice device) {
  * Create uniform buffer with light data
  */
 WGPUBuffer webgpu_create_light_uniform_buffer(WGPUDevice device) {
-    /* Light uniform buffer: direction(vec3), color(vec3), ambient(vec3), intensity(float) */
-    /* Note: Need to account for WGSL alignment requirements */
-    size_t buffer_size = sizeof(vec4) * 3 + sizeof(float) * 4; /* Padded for alignment */
+    /* Light uniform buffer: matches our 40-byte shader struct exactly */
+    size_t buffer_size = 40; /* Exact size to match shader */
     
     return webgpu_create_buffer(device, buffer_size,
         WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst, NULL);
@@ -383,7 +507,7 @@ WGPUBindGroup webgpu_create_light_bind_group(WGPUDevice device, WGPUBindGroupLay
             .binding = 0,
             .buffer = uniform_buffer,
             .offset = 0,
-            .size = sizeof(vec4) * 3 + sizeof(float) * 4,
+            .size = 40, /* Matches our 40-byte Light struct */
         }
     };
     

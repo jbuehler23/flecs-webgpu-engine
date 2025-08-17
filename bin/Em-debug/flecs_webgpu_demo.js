@@ -5900,6 +5900,74 @@ async function createWasm() {
 
   var _wgpuCommandEncoderRelease = (id) => WebGPU.mgrCommandEncoder.release(id);
 
+  var readI53FromI64 = (ptr) => {
+      return HEAPU32[((ptr)>>2)] + HEAP32[(((ptr)+(4))>>2)] * 4294967296;
+    };
+  
+  
+  var _wgpuDeviceCreateBindGroup = (deviceId, descriptor) => {
+      assert(descriptor);assert(HEAPU32[((descriptor)>>2)] === 0);
+  
+      function makeEntry(entryPtr) {
+        assert(entryPtr);
+  
+        var bufferId = HEAPU32[(((entryPtr)+(8))>>2)];
+        var samplerId = HEAPU32[(((entryPtr)+(32))>>2)];
+        var textureViewId = HEAPU32[(((entryPtr)+(36))>>2)];
+        assert((bufferId !== 0) + (samplerId !== 0) + (textureViewId !== 0) === 1);
+  
+        var binding = HEAPU32[(((entryPtr)+(4))>>2)];
+  
+        if (bufferId) {
+          var size = readI53FromI64((entryPtr)+(24));
+          if (size == -1) size = undefined;
+  
+          return {
+            "binding": binding,
+            "resource": {
+              "buffer": WebGPU.mgrBuffer.get(bufferId),
+              "offset": HEAPU32[((((entryPtr + 4))+(16))>>2)] * 0x100000000 + HEAPU32[(((entryPtr)+(16))>>2)],
+              "size": size
+            },
+          };
+        } else if (samplerId) {
+          return {
+            "binding": binding,
+            "resource": WebGPU.mgrSampler.get(samplerId),
+          };
+        } else {
+          return {
+            "binding": binding,
+            "resource": WebGPU.mgrTextureView.get(textureViewId),
+          };
+        }
+      }
+  
+      function makeEntries(count, entriesPtrs) {
+        var entries = [];
+        for (var i = 0; i < count; ++i) {
+          entries.push(makeEntry(entriesPtrs +
+              40 * i));
+        }
+        return entries;
+      }
+  
+      var desc = {
+        "label": undefined,
+        "layout": WebGPU.mgrBindGroupLayout.get(
+          HEAPU32[(((descriptor)+(8))>>2)]),
+        "entries": makeEntries(
+          HEAPU32[(((descriptor)+(12))>>2)],
+          HEAPU32[(((descriptor)+(16))>>2)]
+        ),
+      };
+      var labelPtr = HEAPU32[(((descriptor)+(4))>>2)];
+      if (labelPtr) desc["label"] = UTF8ToString(labelPtr);
+  
+      var device = WebGPU.mgrDevice.get(deviceId);
+      return WebGPU.mgrBindGroup.create(device.createBindGroup(desc));
+    };
+
   
   var _wgpuDeviceCreateBindGroupLayout = (deviceId, descriptor) => {
       assert(descriptor);assert(HEAPU32[((descriptor)>>2)] === 0);
@@ -6309,6 +6377,36 @@ async function createWasm() {
       return WebGPU.mgrShaderModule.create(device.createShaderModule(desc));
     };
 
+  
+  var _wgpuDeviceCreateTexture = (deviceId, descriptor) => {
+      assert(descriptor);assert(HEAPU32[((descriptor)>>2)] === 0);
+  
+      var desc = {
+        "label": undefined,
+        "size": WebGPU.makeExtent3D(descriptor + 16),
+        "mipLevelCount": HEAPU32[(((descriptor)+(32))>>2)],
+        "sampleCount": HEAPU32[(((descriptor)+(36))>>2)],
+        "dimension": WebGPU.TextureDimension[
+          HEAPU32[(((descriptor)+(12))>>2)]],
+        "format": WebGPU.TextureFormat[
+          HEAPU32[(((descriptor)+(28))>>2)]],
+        "usage": HEAPU32[(((descriptor)+(8))>>2)],
+      };
+      var labelPtr = HEAPU32[(((descriptor)+(4))>>2)];
+      if (labelPtr) desc["label"] = UTF8ToString(labelPtr);
+  
+      var viewFormatCount = HEAPU32[(((descriptor)+(40))>>2)];
+      if (viewFormatCount) {
+        var viewFormatsPtr = HEAPU32[(((descriptor)+(44))>>2)];
+        // viewFormatsPtr pointer to an array of TextureFormat which is an enum of size uint32_t
+        desc['viewFormats'] = Array.from(HEAP32.subarray((((viewFormatsPtr)>>2)), ((viewFormatsPtr + viewFormatCount * 4)>>2)),
+          format => WebGPU.TextureFormat[format]);
+      }
+  
+      var device = WebGPU.mgrDevice.get(deviceId);
+      return WebGPU.mgrTexture.create(device.createTexture(desc));
+    };
+
   var _wgpuDeviceGetQueue = (deviceId) => {
       var queueId = WebGPU.mgrDevice.objects[deviceId].queueId;
       assert(queueId, 'wgpuDeviceGetQueue: queue was missing or null');
@@ -6443,6 +6541,20 @@ async function createWasm() {
       queue.submit(cmds);
     };
 
+  
+  function _wgpuQueueWriteBuffer(queueId, bufferId, bufferOffset, data, size) {
+    bufferOffset = bigintToI53Checked(bufferOffset);
+  
+  
+      var queue = WebGPU.mgrQueue.get(queueId);
+      var buffer = WebGPU.mgrBuffer.get(bufferId);
+      // There is a size limitation for ArrayBufferView. Work around by passing in a subarray
+      // instead of the whole heap. crbug.com/1201109
+      var subarray = HEAPU8.subarray(data, data + size);
+      queue.writeBuffer(buffer, bufferOffset, subarray, 0, size);
+    ;
+  }
+
   var _wgpuRenderPassEncoderDrawIndexed = (passId, indexCount, instanceCount, firstIndex, baseVertex, firstInstance) => {
       var pass = WebGPU.mgrRenderPassEncoder.get(passId);
       pass.drawIndexed(indexCount, instanceCount, firstIndex, baseVertex, firstInstance);
@@ -6454,6 +6566,20 @@ async function createWasm() {
     };
 
   var _wgpuRenderPassEncoderRelease = (id) => WebGPU.mgrRenderPassEncoder.release(id);
+
+  var _wgpuRenderPassEncoderSetBindGroup = (passId, groupIndex, groupId, dynamicOffsetCount, dynamicOffsetsPtr) => {
+      var pass = WebGPU.mgrRenderPassEncoder.get(passId);
+      var group = WebGPU.mgrBindGroup.get(groupId);
+      if (dynamicOffsetCount == 0) {
+        pass.setBindGroup(groupIndex, group);
+      } else {
+        var offsets = [];
+        for (var i = 0; i < dynamicOffsetCount; i++, dynamicOffsetsPtr += 4) {
+          offsets.push(HEAPU32[((dynamicOffsetsPtr)>>2)]);
+        }
+        pass.setBindGroup(groupIndex, group, offsets);
+      }
+    };
 
   
   function _wgpuRenderPassEncoderSetIndexBuffer(passId, bufferId, format, offset, size) {
@@ -6579,6 +6705,8 @@ async function createWasm() {
       var texture = WebGPU.mgrTexture.get(textureId);
       return WebGPU.mgrTextureView.create(texture.createView(desc));
     };
+
+  var _wgpuTextureRelease = (id) => WebGPU.mgrTexture.release(id);
 
   var _wgpuTextureViewRelease = (id) => WebGPU.mgrTextureView.release(id);
 
@@ -7039,7 +7167,6 @@ if (Module['wasmBinary']) wasmBinary = Module['wasmBinary'];
   'writeI53ToI64Signaling',
   'writeI53ToU64Clamped',
   'writeI53ToU64Signaling',
-  'readI53FromI64',
   'readI53FromU64',
   'convertI32PairToI53',
   'convertI32PairToI53Checked',
@@ -7193,6 +7320,7 @@ missingLibrarySymbols.forEach(missingLibrarySymbol)
   'HEAPU64',
   'writeStackCookie',
   'checkStackCookie',
+  'readI53FromI64',
   'INT53_MAX',
   'INT53_MIN',
   'bigintToI53Checked',
@@ -7445,47 +7573,71 @@ function checkIncomingModuleAPI() {
   ignoredModuleProp('fetchSettings');
 }
 var ASM_CONSTS = {
-  1230712: () => { console.log('Setting up Emscripten main loop from JavaScript'); },  
- 1230780: () => { console.log('Main loop setup complete'); },  
- 1230825: () => { console.log('Main function starting (WebAssembly)'); },  
- 1230882: () => { console.error('Failed to initialize engine: no world created'); },  
- 1230950: () => { console.log('Demo initialized successfully, setting up main loop'); },  
- 1231022: () => { console.log('Main function completed, main loop will start asynchronously'); },  
- 1231103: () => { console.log('WebGPU: Initializing renderer'); },  
- 1231153: () => { console.log('WebGPU: Instance creation attempted'); },  
- 1231209: () => { console.log('WebGPU: Failed to create instance'); },  
- 1231263: () => { console.log('WebGPU: Instance created successfully'); },  
- 1231321: () => { console.log('WebGPU: Requesting adapter asynchronously...'); },  
- 1231386: ($0) => { console.log('WebGPU: Adapter callback received, status:', $0); },  
- 1231453: () => { console.error('WebGPU: Adapter request failed'); },  
- 1231506: () => { console.log('WebGPU: Adapter acquired successfully, now requesting device...'); },  
- 1231590: ($0) => { console.log('WebGPU: Device callback received, status:', $0); },  
- 1231656: () => { console.error('WebGPU: Device request failed'); },  
- 1231708: () => { console.log('WebGPU: Device and queue acquired successfully - WebGPU pipeline ready!'); },  
- 1231800: () => { console.log('WebGPU: Surface configured for rendering'); },  
- 1231861: ($0, $1) => { console.error('WebGPU Error:', UTF8ToString($0), UTF8ToString($1)); console.error('Stopping render loop due to WebGPU error'); },  
- 1231992: () => { console.log('Main loop: First run starting'); },  
- 1232042: () => { console.log('Main loop: No world, canceling loop'); },  
- 1232098: () => { try { Module.ecs_progress_safe = true; } catch(e) { Module.ecs_progress_safe = false; console.error('Pre-progress error:', e); } },  
- 1232231: ($0) => { console.log('Frame:', $0, 'ECS running normally'); },  
- 1232286: ($0, $1) => { console.log('ECS progress stopping: continue=', $0, 'success=', $1); },  
- 1232359: () => { console.log('Flecs world created successfully'); },  
- 1232412: () => { console.log('WebGPU systems imported successfully'); },  
- 1232469: () => { console.log('About to create renderer entity'); },  
- 1232521: () => { console.log('Renderer entity created, adding EcsCanvas'); },  
- 1232583: () => { console.log('EcsCanvas added, adding WebGPURenderer'); },  
- 1232642: () => { console.log('WebGPURenderer added, adding WebGPUQuery'); },  
- 1232703: () => { console.log('Renderer entity created'); },  
- 1232747: () => { console.log('Attempting manual WebGPU initialization'); },  
- 1232807: () => { console.log('WebGPU instance created successfully'); },  
- 1232864: () => { console.log('WebGPU surface created successfully'); },  
- 1232920: () => { console.log('Failed to create WebGPU surface'); },  
- 1232972: () => { console.log('Failed to create WebGPU instance'); },  
- 1233025: () => { console.log('WebGPU: Requesting adapter from manual init...'); },  
- 1233092: () => { console.log('Demo scene created with 5 entities'); },  
- 1233147: () => { console.log('Deferred: Setting up main loop'); },  
- 1233198: () => { console.error('Deferred: No world available for main loop'); },  
- 1233263: () => { console.log('Deferred: Starting main loop with timeout'); setTimeout(function() { try { Module._setup_emscripten_main_loop(); } catch(e) { console.error('Failed to setup main loop:', e); } }, 100); }
+  1232296: ($0, $1, $2) => { console.error('webgpu_create_depth_texture: Invalid parameters'); console.error('Device:', $0, 'Width:', $1, 'Height:', $2); },  
+ 1232425: ($0, $1) => { console.log('webgpu_create_depth_texture: Creating texture with dimensions:', $0, 'x', $1); },  
+ 1232521: () => { console.log('webgpu_create_depth_texture: Calling wgpuDeviceCreateTexture...'); console.log('Format: Depth24Plus, Usage: RenderAttachment|TextureBinding'); },  
+ 1232681: () => { console.error('webgpu_create_depth_texture: wgpuDeviceCreateTexture returned NULL'); },  
+ 1232770: ($0) => { console.log('webgpu_create_depth_texture: ✓ Successfully created depth texture'); console.log('Texture handle:', $0); },  
+ 1232894: () => { console.error('webgpu_create_depth_texture_view: Invalid depth texture (NULL)'); },  
+ 1232979: ($0) => { console.log('webgpu_create_depth_texture_view: Creating view for texture handle:', $0); },  
+ 1233071: () => { console.log('webgpu_create_depth_texture_view: Calling wgpuTextureCreateView...'); console.log('Format: Depth24Plus, Dimension: 2D, Aspect: DepthOnly'); },  
+ 1233228: () => { console.error('webgpu_create_depth_texture_view: wgpuTextureCreateView returned NULL'); },  
+ 1233320: ($0) => { console.log('webgpu_create_depth_texture_view: ✓ Successfully created depth texture view'); console.log('View handle:', $0); },  
+ 1233451: () => { console.log('Setting up Emscripten main loop from JavaScript'); },  
+ 1233519: () => { console.log('Main loop setup complete'); },  
+ 1233564: () => { console.log('Main function starting (WebAssembly)'); },  
+ 1233621: () => { console.error('Failed to initialize engine: no world created'); },  
+ 1233689: () => { console.log('Demo initialized successfully, setting up main loop'); },  
+ 1233761: () => { console.log('Main function completed, main loop will start asynchronously'); },  
+ 1233842: () => { console.log('WebGPU: Initializing renderer'); },  
+ 1233892: () => { console.log('WebGPU: Instance creation attempted'); },  
+ 1233948: () => { console.log('WebGPU: Failed to create instance'); },  
+ 1234002: () => { console.log('WebGPU: Instance created successfully'); },  
+ 1234060: () => { console.log('WebGPU: Requesting adapter asynchronously...'); },  
+ 1234125: ($0) => { console.log('WebGPU: Adapter callback received, status:', $0); },  
+ 1234192: () => { console.error('WebGPU: Adapter request failed'); },  
+ 1234245: () => { console.log('WebGPU: Adapter acquired successfully, now requesting device...'); },  
+ 1234329: ($0) => { console.log('WebGPU: Device callback received, status:', $0); },  
+ 1234395: () => { console.error('WebGPU: Device request failed'); },  
+ 1234447: () => { console.log('WebGPU: Device and queue acquired successfully - WebGPU pipeline ready!'); },  
+ 1234539: ($0, $1) => { console.log('WebGPU: Starting depth texture creation...'); console.log('WebGPU: Canvas dimensions:', $0, 'x', $1); },  
+ 1234658: ($0) => { console.log('WebGPU: ✓ Depth texture created successfully'); console.log('WebGPU: Depth texture handle:', $0); },  
+ 1234775: ($0) => { console.log('WebGPU: ✓ Depth texture view created successfully'); console.log('WebGPU: Depth texture view handle:', $0); },  
+ 1234902: () => { console.error('WebGPU: ✗ Failed to create depth texture view'); },  
+ 1234972: ($0, $1, $2) => { console.error('WebGPU: ✗ Failed to create depth texture'); console.error('WebGPU: Device handle:', $0); console.error('WebGPU: Canvas dimensions:', $1, 'x', $2); },  
+ 1235140: () => { console.log('WebGPU: Creating uniform buffers...'); },  
+ 1235196: ($0, $1) => { console.log('WebGPU: ✓ Uniform buffers created successfully'); console.log('WebGPU: Camera buffer:', $0); console.log('WebGPU: Light buffer:', $1); },  
+ 1235350: () => { console.log('WebGPU: ✓ Default render pipeline created'); },  
+ 1235414: ($0, $1) => { console.log('WebGPU: ✓ Uniform buffer bind groups created successfully'); console.log('WebGPU: Camera bind group:', $0); console.log('WebGPU: Light bind group:', $1); },  
+ 1235587: () => { console.error('WebGPU: ✗ Failed to create uniform buffer bind groups'); },  
+ 1235665: () => { console.error('WebGPU: ✗ Failed to create render pipeline'); },  
+ 1235732: () => { console.error('WebGPU: ✗ Failed to create shader modules'); },  
+ 1235798: () => { console.error('WebGPU: ✗ Failed to create uniform buffers'); },  
+ 1235865: () => { console.log('WebGPU: Surface configured for rendering'); },  
+ 1235926: ($0, $1) => { console.error('WebGPU Error:', UTF8ToString($0), UTF8ToString($1)); console.error('Stopping render loop due to WebGPU error'); },  
+ 1236057: ($0, $1) => { console.log('WebGPU: Creating render pass...'); console.log('WebGPU: Depth texture view available:', $0 ? 'YES' : 'NO'); if ($0) { console.log('WebGPU: Depth texture view handle:', $1); console.log('WebGPU: ✓ Render pass will include depth stencil attachment'); console.log('WebGPU: Depth operations: Clear(1.0) -> Store'); console.log('WebGPU: Stencil operations: DISABLED (depth-only texture)'); } else { console.warn('WebGPU: ⚠ Render pass will NOT include depth stencil attachment'); } },  
+ 1236555: () => { console.log('Main loop: First run starting'); },  
+ 1236605: () => { console.log('Main loop: No world, canceling loop'); },  
+ 1236661: () => { try { Module.ecs_progress_safe = true; } catch(e) { Module.ecs_progress_safe = false; console.error('Pre-progress error:', e); } },  
+ 1236794: ($0) => { console.log('Frame:', $0, 'ECS running normally'); },  
+ 1236849: ($0, $1) => { console.log('ECS progress stopping: continue=', $0, 'success=', $1); },  
+ 1236922: () => { console.log('Flecs world created successfully'); },  
+ 1236975: () => { console.log('WebGPU systems imported successfully'); },  
+ 1237032: () => { console.log('About to create renderer entity'); },  
+ 1237084: () => { console.log('Renderer entity created, adding EcsCanvas'); },  
+ 1237146: () => { console.log('EcsCanvas added, adding WebGPURenderer'); },  
+ 1237205: () => { console.log('WebGPURenderer added, adding WebGPUQuery'); },  
+ 1237266: () => { console.log('Renderer entity created'); },  
+ 1237310: () => { console.log('Attempting manual WebGPU initialization'); },  
+ 1237370: () => { console.log('WebGPU instance created successfully'); },  
+ 1237427: () => { console.log('WebGPU surface created successfully'); },  
+ 1237483: () => { console.log('Failed to create WebGPU surface'); },  
+ 1237535: () => { console.log('Failed to create WebGPU instance'); },  
+ 1237588: () => { console.log('WebGPU: Requesting adapter from manual init...'); },  
+ 1237655: () => { console.log('Demo scene created with 5 entities'); },  
+ 1237710: () => { console.log('Deferred: Setting up main loop'); },  
+ 1237761: () => { console.error('Deferred: No world available for main loop'); },  
+ 1237826: () => { console.log('Deferred: Starting main loop with timeout'); setTimeout(function() { try { Module._setup_emscripten_main_loop(); } catch(e) { console.error('Failed to setup main loop:', e); } }, 100); }
 };
 
 // Imports from the Wasm binary.
@@ -7644,6 +7796,8 @@ var wasmImports = {
   /** @export */
   wgpuCommandEncoderRelease: _wgpuCommandEncoderRelease,
   /** @export */
+  wgpuDeviceCreateBindGroup: _wgpuDeviceCreateBindGroup,
+  /** @export */
   wgpuDeviceCreateBindGroupLayout: _wgpuDeviceCreateBindGroupLayout,
   /** @export */
   wgpuDeviceCreateBuffer: _wgpuDeviceCreateBuffer,
@@ -7655,6 +7809,8 @@ var wasmImports = {
   wgpuDeviceCreateRenderPipeline: _wgpuDeviceCreateRenderPipeline,
   /** @export */
   wgpuDeviceCreateShaderModule: _wgpuDeviceCreateShaderModule,
+  /** @export */
+  wgpuDeviceCreateTexture: _wgpuDeviceCreateTexture,
   /** @export */
   wgpuDeviceGetQueue: _wgpuDeviceGetQueue,
   /** @export */
@@ -7672,11 +7828,15 @@ var wasmImports = {
   /** @export */
   wgpuQueueSubmit: _wgpuQueueSubmit,
   /** @export */
+  wgpuQueueWriteBuffer: _wgpuQueueWriteBuffer,
+  /** @export */
   wgpuRenderPassEncoderDrawIndexed: _wgpuRenderPassEncoderDrawIndexed,
   /** @export */
   wgpuRenderPassEncoderEnd: _wgpuRenderPassEncoderEnd,
   /** @export */
   wgpuRenderPassEncoderRelease: _wgpuRenderPassEncoderRelease,
+  /** @export */
+  wgpuRenderPassEncoderSetBindGroup: _wgpuRenderPassEncoderSetBindGroup,
   /** @export */
   wgpuRenderPassEncoderSetIndexBuffer: _wgpuRenderPassEncoderSetIndexBuffer,
   /** @export */
@@ -7695,6 +7855,8 @@ var wasmImports = {
   wgpuSurfaceRelease: _wgpuSurfaceRelease,
   /** @export */
   wgpuTextureCreateView: _wgpuTextureCreateView,
+  /** @export */
+  wgpuTextureRelease: _wgpuTextureRelease,
   /** @export */
   wgpuTextureViewRelease: _wgpuTextureViewRelease
 };

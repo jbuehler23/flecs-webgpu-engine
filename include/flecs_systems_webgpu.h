@@ -173,6 +173,18 @@ typedef struct WebGPURenderer {
     uint32_t width, height;            // Current canvas dimensions
     WGPUTextureFormat surface_format;  // Surface pixel format
     
+    /* Depth buffer */
+    WGPUTexture depth_texture;         // Depth buffer texture
+    WGPUTextureView depth_texture_view; // Depth buffer view
+    
+    /* Uniform buffers */
+    WGPUBuffer camera_uniform_buffer;   // Camera view/projection matrices
+    WGPUBuffer light_uniform_buffer;    // Light direction/color/intensity
+    WGPUBindGroup camera_bind_group;    // Camera bind group
+    WGPUBindGroup light_bind_group;     // Light bind group
+    WGPUBindGroupLayout camera_layout;  // Camera bind group layout
+    WGPUBindGroupLayout light_layout;   // Light bind group layout
+    
     /* Rendering queries */
     ecs_query_t *geometry_query;       // Query for renderable entities
     

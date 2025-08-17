@@ -86,6 +86,8 @@ void webgpu_destroy_resource_pool(webgpu_resource_pool_t *pool);
 WGPUBuffer webgpu_create_buffer(WGPUDevice device, size_t size, WGPUBufferUsage usage, const void *data);
 void webgpu_update_buffer(WGPUDevice device, WGPUQueue queue, WGPUBuffer buffer, const void *data, size_t size, size_t offset);
 WGPUTexture webgpu_create_texture_2d(WGPUDevice device, uint32_t width, uint32_t height, WGPUTextureFormat format);
+WGPUTexture webgpu_create_depth_texture(WGPUDevice device, uint32_t width, uint32_t height);
+WGPUTextureView webgpu_create_depth_texture_view(WGPUTexture depth_texture);
 WGPURenderPipeline webgpu_create_geometry_pipeline(WGPUDevice device, WGPUShaderModule vertex_shader, WGPUShaderModule fragment_shader);
 WGPUBuffer webgpu_create_camera_uniform_buffer(WGPUDevice device);
 WGPUBuffer webgpu_create_light_uniform_buffer(WGPUDevice device);
